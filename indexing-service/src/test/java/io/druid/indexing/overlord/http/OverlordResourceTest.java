@@ -39,7 +39,9 @@ import io.druid.indexing.overlord.TaskStorageQueryAdapter;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.Authorizer;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.Resource;
 import org.easymock.EasyMock;
 import org.junit.After;
@@ -72,25 +74,14 @@ public class OverlordResourceTest
         Optional.of(taskRunner)
     ).anyTimes();
 
-    overlordResource = new OverlordResource(
-        taskMaster,
-        tsqa,
-        null,
-        null,
-        null,
-        new AuthConfig(true)
-    );
-  }
-
-  public void expectAuthorizationTokenCheck()
-  {
-    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn(
-        new AuthorizationInfo()
+    AuthorizerMapper authMapper = new AuthorizerMapper(null) {
+      @Override
+      public Authorizer getAuthorizer(String name)
+      {
+        return new Authorizer()
         {
           @Override
-          public Access isAuthorized(
-              Resource resource, Action action
-          )
+          public Access authorize(AuthenticationResult authenticationResult, Resource resource, Action action)
           {
             if (resource.getName().equals("allow")) {
               return new Access(true);
@@ -98,8 +89,36 @@ public class OverlordResourceTest
               return new Access(false);
             }
           }
-        }
+
+        };
+      }
+    };
+
+    overlordResource = new OverlordResource(
+        taskMaster,
+        tsqa,
+        null,
+        null,
+        null,
+        new AuthConfig(true, null, null, null),
+        authMapper
     );
+  }
+
+  public void expectAuthorizationTokenCheck()
+  {
+    AuthenticationResult authenticationResult = new AuthenticationResult("druid", "druid");
+
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED)).andReturn(null).anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(authenticationResult)
+            .anyTimes();
+
+    req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, false);
+    EasyMock.expectLastCall().anyTimes();
+
+    req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().anyTimes();
   }
 
   @Test

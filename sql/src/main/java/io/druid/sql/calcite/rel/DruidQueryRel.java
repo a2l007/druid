@@ -35,13 +35,8 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import java.util.List;
 
-import javax.annotation.Nullable;
-import java.io.IOException;
-
-/**
- * DruidRel that uses a "table" dataSource.
- */
 public class DruidQueryRel extends DruidRel<DruidQueryRel>
 {
   // Factors used for computing cost (see computeSelfCost). These are intended to encourage pushing down filters
@@ -132,6 +127,12 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
         getQueryMaker(),
         queryBuilder
     );
+  }
+
+  @Override
+  public List<String> getDatasourceNames()
+  {
+    return druidTable.getDataSource().getNames();
   }
 
   @Override

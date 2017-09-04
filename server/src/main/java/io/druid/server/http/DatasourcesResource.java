@@ -44,7 +44,8 @@ import io.druid.metadata.MetadataSegmentManager;
 import io.druid.query.TableDataSource;
 import io.druid.server.http.security.DatasourceResourceFilter;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
@@ -82,19 +83,22 @@ public class DatasourcesResource
   private final MetadataSegmentManager databaseSegmentManager;
   private final IndexingServiceClient indexingServiceClient;
   private final AuthConfig authConfig;
+  private final AuthorizerMapper authorizerMapper;
 
   @Inject
   public DatasourcesResource(
       CoordinatorServerView serverInventoryView,
       MetadataSegmentManager databaseSegmentManager,
       @Nullable IndexingServiceClient indexingServiceClient,
-      AuthConfig authConfig
+      AuthConfig authConfig,
+      AuthorizerMapper authorizerMapper
   )
   {
     this.serverInventoryView = serverInventoryView;
     this.databaseSegmentManager = databaseSegmentManager;
     this.indexingServiceClient = indexingServiceClient;
     this.authConfig = authConfig;
+    this.authorizerMapper = authorizerMapper;
   }
 
   @GET
@@ -106,12 +110,11 @@ public class DatasourcesResource
   )
   {
     Response.ResponseBuilder builder = Response.ok();
-    final Set<DruidDataSource> datasources = authConfig.isEnabled() ?
-                                             InventoryViewUtils.getSecuredDataSources(
-                                                 serverInventoryView,
-                                                 (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)
-                                             ) :
-                                             InventoryViewUtils.getDataSources(serverInventoryView);
+    final Set<DruidDataSource> datasources = InventoryViewUtils.getSecuredDataSources(
+        serverInventoryView,
+        authorizerMapper,
+        (AuthenticationResult) req.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT)
+    );
 
     if (full != null) {
       return builder.entity(datasources).build();

@@ -45,7 +45,9 @@ import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.Authorizer;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.Resource;
 import org.easymock.EasyMock;
 import org.joda.time.Interval;
@@ -72,6 +74,9 @@ public class QueryResourceTest
 {
   private static final QueryToolChestWarehouse warehouse = new MapQueryToolChestWarehouse(ImmutableMap.<Class<? extends Query>, QueryToolChest>of());
   private static final ObjectMapper jsonMapper = new DefaultObjectMapper();
+  private static final AuthenticationResult authenticationResult = new AuthenticationResult("druid", "druid");
+
+
   public static final ServerConfig serverConfig = new ServerConfig()
   {
     @Override
@@ -113,6 +118,7 @@ public class QueryResourceTest
     }
   };
 
+
   private static final ServiceEmitter noopServiceEmitter = new NoopServiceEmitter();
 
   private QueryResource queryResource;
@@ -139,12 +145,15 @@ public class QueryResourceTest
             new NoopServiceEmitter(),
             new NoopRequestLogger(),
             serverConfig,
-            new AuthConfig()
+            new AuthConfig(),
+            new AuthorizerMapper(null)
         ),
         jsonMapper,
         jsonMapper,
         queryManager,
-        new AuthConfig()
+        new AuthConfig(),
+        null,
+        new DefaultGenericQueryMetricsFactory(jsonMapper)
     );
   }
 
@@ -166,16 +175,10 @@ public class QueryResourceTest
   @Test
   public void testGoodQuery() throws IOException
   {
-    EasyMock.expect(testServletRequest.getAttribute(EasyMock.anyString())).andReturn(
-        new AuthorizationInfo()
-        {
-          @Override
-          public Access isAuthorized(Resource resource, Action action)
-          {
-            return new Access(true);
-          }
-        }
-    ).times(1);
+    EasyMock.expect(testServletRequest.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(authenticationResult)
+            .anyTimes();
+
     EasyMock.replay(testServletRequest);
     Response response = queryResource.doPost(
         new ByteArrayInputStream(simpleTimeSeriesQuery.getBytes("UTF-8")),
@@ -201,13 +204,26 @@ public class QueryResourceTest
   @Test
   public void testSecuredQuery() throws Exception
   {
-    EasyMock.expect(testServletRequest.getAttribute(EasyMock.anyString())).andReturn(
-        new AuthorizationInfo()
+    EasyMock.expect(testServletRequest.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(authenticationResult)
+            .anyTimes();
+
+    testServletRequest.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, false);
+    EasyMock.expectLastCall().times(1);
+
+    testServletRequest.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
+
+    EasyMock.replay(testServletRequest);
+
+    AuthorizerMapper authMapper = new AuthorizerMapper(null) {
+      @Override
+      public Authorizer getAuthorizer(String name)
+      {
+        return new Authorizer()
         {
           @Override
-          public Access isAuthorized(
-              Resource resource, Action action
-          )
+          public Access authorize(AuthenticationResult authenticationResult, Resource resource, Action action)
           {
             if (resource.getName().equals("allow")) {
               return new Access(true);
@@ -215,9 +231,10 @@ public class QueryResourceTest
               return new Access(false);
             }
           }
-        }
-    ).times(2);
-    EasyMock.replay(testServletRequest);
+
+        };
+      }
+    };
 
     queryResource = new QueryResource(
         new QueryLifecycleFactory(
@@ -227,12 +244,15 @@ public class QueryResourceTest
             new NoopServiceEmitter(),
             new NoopRequestLogger(),
             serverConfig,
-            new AuthConfig(true)
+            new AuthConfig(true, null, null, null),
+            authMapper
         ),
         jsonMapper,
         jsonMapper,
         queryManager,
-        new AuthConfig(true)
+        new AuthConfig(true, null, null, null),
+        authMapper,
+        new DefaultGenericQueryMetricsFactory(jsonMapper)
     );
 
     Response response = queryResource.doPost(
@@ -260,13 +280,23 @@ public class QueryResourceTest
     final CountDownLatch startAwaitLatch = new CountDownLatch(1);
     final CountDownLatch cancelledCountDownLatch = new CountDownLatch(1);
 
-    EasyMock.expect(testServletRequest.getAttribute(EasyMock.anyString())).andReturn(
-        new AuthorizationInfo()
+    EasyMock.expect(testServletRequest.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(authenticationResult)
+            .anyTimes();
+
+    testServletRequest.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
+
+    EasyMock.replay(testServletRequest);
+
+    AuthorizerMapper authMapper = new AuthorizerMapper(null) {
+      @Override
+      public Authorizer getAuthorizer(String name)
+      {
+        return new Authorizer()
         {
           @Override
-          public Access isAuthorized(
-              Resource resource, Action action
-          )
+          public Access authorize(AuthenticationResult authenticationResult, Resource resource, Action action)
           {
             // READ action corresponds to the query
             // WRITE corresponds to cancellation of query
@@ -289,9 +319,10 @@ public class QueryResourceTest
               return new Access(true);
             }
           }
-        }
-    ).times(2);
-    EasyMock.replay(testServletRequest);
+
+        };
+      }
+    };
 
     queryResource = new QueryResource(
         new QueryLifecycleFactory(
@@ -301,12 +332,15 @@ public class QueryResourceTest
             new NoopServiceEmitter(),
             new NoopRequestLogger(),
             serverConfig,
-            new AuthConfig(true)
+            new AuthConfig(true, null, null, null),
+            authMapper
         ),
         jsonMapper,
         jsonMapper,
         queryManager,
-        new AuthConfig(true)
+        new AuthConfig(true, null, null, null),
+        authMapper,
+        new DefaultGenericQueryMetricsFactory(jsonMapper)
     );
 
     final String queryString = "{\"queryType\":\"timeBoundary\", \"dataSource\":\"allow\","
@@ -366,13 +400,27 @@ public class QueryResourceTest
     final CountDownLatch waitFinishLatch = new CountDownLatch(2);
     final CountDownLatch startAwaitLatch = new CountDownLatch(1);
 
-    EasyMock.expect(testServletRequest.getAttribute(EasyMock.anyString())).andReturn(
-        new AuthorizationInfo()
+    EasyMock.expect(testServletRequest.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(authenticationResult)
+            .anyTimes();
+
+    testServletRequest.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
+
+    testServletRequest.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, false);
+    EasyMock.expectLastCall().times(1);
+
+    EasyMock.replay(testServletRequest);
+
+    AuthorizerMapper authMapper = new AuthorizerMapper(null)
+    {
+      @Override
+      public Authorizer getAuthorizer(String name)
+      {
+        return new Authorizer()
         {
           @Override
-          public Access isAuthorized(
-              Resource resource, Action action
-          )
+          public Access authorize(AuthenticationResult authenticationResult, Resource resource, Action action)
           {
             // READ action corresponds to the query
             // WRITE corresponds to cancellation of query
@@ -389,9 +437,10 @@ public class QueryResourceTest
               return new Access(false);
             }
           }
-        }
-    ).times(2);
-    EasyMock.replay(testServletRequest);
+
+        };
+      }
+    };
 
     queryResource = new QueryResource(
         new QueryLifecycleFactory(
@@ -401,12 +450,15 @@ public class QueryResourceTest
             new NoopServiceEmitter(),
             new NoopRequestLogger(),
             serverConfig,
-            new AuthConfig(true)
+            new AuthConfig(true, null, null, null),
+            authMapper
         ),
         jsonMapper,
         jsonMapper,
         queryManager,
-        new AuthConfig(true)
+        new AuthConfig(true, null, null, null),
+        authMapper,
+        new DefaultGenericQueryMetricsFactory(jsonMapper)
     );
 
     final String queryString = "{\"queryType\":\"timeBoundary\", \"dataSource\":\"allow\","

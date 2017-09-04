@@ -118,7 +118,10 @@ public class HttpClientModule implements Module
         builder.withSslContext(getSslContextBinding().getProvider().get());
       }
 
-      return HttpClientInit.createClient(builder.build(), LifecycleUtils.asMmxLifecycle(getLifecycleProvider().get()));
+      return HttpClientInit.createClient(
+          builder.build(),
+          LifecycleUtils.asMmxLifecycle(getLifecycleProvider().get())
+      );
     }
   }
 }

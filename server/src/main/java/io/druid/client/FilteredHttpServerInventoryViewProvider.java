@@ -29,6 +29,7 @@ import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
 import io.druid.java.util.common.Pair;
 import io.druid.server.coordination.DruidServerMetadata;
+import io.druid.server.security.AuthenticatorHttpClientWrapper;
 import io.druid.timeline.DataSegment;
 
 import javax.validation.constraints.NotNull;
@@ -60,6 +61,10 @@ public class FilteredHttpServerInventoryViewProvider implements FilteredServerIn
   @NotNull
   private DruidNodeDiscoveryProvider druidNodeDiscoveryProvider = null;
 
+  @JacksonInject
+  @NotNull
+  private AuthenticatorHttpClientWrapper authenticatorHttpClientWrapper = null;
+
   @Override
   public HttpServerInventoryView get()
   {
@@ -67,7 +72,8 @@ public class FilteredHttpServerInventoryViewProvider implements FilteredServerIn
         jsonMapper, smileMapper, httpClient,
         druidNodeDiscoveryProvider,
         Predicates.<Pair<DruidServerMetadata, DataSegment>>alwaysTrue(),
-        config
+        config,
+        authenticatorHttpClientWrapper
     );
   }
 }

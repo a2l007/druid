@@ -40,13 +40,12 @@ import io.druid.query.QueryToolChestWarehouse;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
-import io.druid.server.security.Action;
-import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
-import io.druid.server.security.Resource;
-import io.druid.server.security.ResourceType;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.AuthorizationUtils;
 
 import javax.annotation.Nullable;
+import javax.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -58,7 +57,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <ol>
  * <li>Initialization ({@link #initialize(Query)})</li>
- * <li>Authorization ({@link #authorize(AuthorizationInfo)}</li>
+ * <li>Authorization ({@link #authorize(String, String, HttpServletRequest)}</li>
  * <li>Execution ({@link #execute()}</li>
  * <li>Logging ({@link #emitLogsAndMetrics(Throwable, String, long)}</li>
  * </ol>
@@ -75,7 +74,7 @@ public class QueryLifecycle
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
   private final ServerConfig serverConfig;
-  private final AuthConfig authConfig;
+  private final AuthorizerMapper authorizerMapper;
   private final long startMs;
   private final long startNs;
 
@@ -90,7 +89,7 @@ public class QueryLifecycle
       final ServiceEmitter emitter,
       final RequestLogger requestLogger,
       final ServerConfig serverConfig,
-      final AuthConfig authConfig,
+      final AuthorizerMapper authorizerMapper,
       final long startMs,
       final long startNs
   )
@@ -101,7 +100,7 @@ public class QueryLifecycle
     this.emitter = emitter;
     this.requestLogger = requestLogger;
     this.serverConfig = serverConfig;
-    this.authConfig = authConfig;
+    this.authorizerMapper = authorizerMapper;
     this.startMs = startMs;
     this.startNs = startNs;
   }
@@ -112,16 +111,19 @@ public class QueryLifecycle
    * either fully iterated or throws an exception.
    *
    * @param query             the query
-   * @param authorizationInfo authorization info from the request; or null if none is present. This must be non-null
-   *                          if security is enabled, or the request will be considered unauthorized.
+   * @param user              authentication token from the request
+   * @param namespace         authentication namespace of the request
    * @param remoteAddress     remote address, for logging; or null if unknown
+   * @param needsAuth         if false, skip the authorization check. This is useful when the authorization check has
+   *                          already been performed (e.g. in SQL handling, where authorization takes place in the
+   *                          planning step)
    *
    * @return results
    */
   @SuppressWarnings("unchecked")
   public <T> Sequence<T> runSimple(
       final Query<T> query,
-      @Nullable final AuthorizationInfo authorizationInfo,
+      @Nullable final AuthenticationResult authenticationResult,
       @Nullable final String remoteAddress
   )
   {
@@ -130,7 +132,7 @@ public class QueryLifecycle
     final Sequence<T> results;
 
     try {
-      final Access access = authorize(authorizationInfo);
+      final Access access = authorize(authenticationResult, null);
       if (!access.isAllowed()) {
         throw new ISE("Unauthorized");
       }
@@ -183,41 +185,44 @@ public class QueryLifecycle
   /**
    * Authorize the query. Will return an Access object denoting whether the query is authorized or not.
    *
-   * @param authorizationInfo authorization info from the request; or null if none is present. This must be non-null
-   *                          if security is enabled, or the request will be considered unauthorized.
+   * @param token authentication token from the request
+   * @param namespace namespace of the authentication token
+   * @param req HTTP request object of the request. If provided, the auth-related fields in the HTTP request
+   *            will be automatically set.
    *
    * @return authorization result
    *
-   * @throws IllegalStateException if security is enabled and authorizationInfo is null
-   */
-  public Access authorize(@Nullable final AuthorizationInfo authorizationInfo)
+   * */
+  public Access authorize(
+      @Nullable final AuthenticationResult authenticationResult,
+      @Nullable HttpServletRequest req
+  )
   {
     transition(State.INITIALIZED, State.AUTHORIZING);
+    Access authResult;
+    if (req != null) {
+      authResult = AuthorizationUtils.authorizeAllResourceActions(
+          req,
+          queryPlus.getQuery().getDataSource().getNames(),
+          AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR,
+          authorizerMapper
+      );
+    } else {
+      authResult = AuthorizationUtils.authorizeAllResourceActions(
+          queryPlus.getQuery().getDataSource().getNames(),
+          AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR,
+          authenticationResult,
+          authorizerMapper
+      );
+    }
 
-    if (authConfig.isEnabled()) {
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      if (authorizationInfo != null) {
-        for (String dataSource : queryPlus.getQuery().getDataSource().getNames()) {
-          Access authResult = authorizationInfo.isAuthorized(
-              new Resource(dataSource, ResourceType.DATASOURCE),
-              Action.READ
-          );
-          if (!authResult.isAllowed()) {
-            // Not authorized; go straight to Jail, do not pass Go.
-            transition(State.AUTHORIZING, State.DONE);
-            return authResult;
-          }
-        }
-
-        transition(State.AUTHORIZING, State.AUTHORIZED);
-        return new Access(true);
-      } else {
-        throw new ISE("WTF?! Security is enabled but no authorization info found in the request");
-      }
+    if (!authResult.isAllowed()) {
+      // Not authorized; go straight to Jail, do not pass Go.
+      transition(State.AUTHORIZING, State.DONE);
     } else {
       transition(State.AUTHORIZING, State.AUTHORIZED);
-      return new Access(true);
     }
+    return authResult;
   }
 
   /**
