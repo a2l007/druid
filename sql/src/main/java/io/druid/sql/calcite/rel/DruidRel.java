@@ -35,8 +35,8 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import javax.annotation.Nullable;
 
 public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode implements BindableRel
 {

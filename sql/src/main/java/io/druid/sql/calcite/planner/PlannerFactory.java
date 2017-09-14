@@ -72,7 +72,8 @@ public class PlannerFactory
       final PlannerConfig plannerConfig,
       final AuthConfig authConfig,
       final AuthenticatorMapper authenticatorMapper,
-      final AuthorizerMapper authorizerMapper
+      final AuthorizerMapper authorizerMapper,
+      final @Json ObjectMapper jsonMapper
   )
   {
     this.druidSchema = druidSchema;
@@ -83,7 +84,7 @@ public class PlannerFactory
     this.authConfig = authConfig;
     this.authorizerMapper = authorizerMapper;
     this.authenticatorMapper = authenticatorMapper;
-    this.jsonMapper = null;
+    this.jsonMapper = jsonMapper;
   }
 
   public DruidPlanner createPlanner(final Map<String, Object> queryContext)
@@ -97,6 +98,7 @@ public class PlannerFactory
         queryContext
     );
     final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, plannerContext, jsonMapper);
+
     final FrameworkConfig frameworkConfig = Frameworks
         .newConfigBuilder()
         .parserConfig(PARSER_CONFIG)

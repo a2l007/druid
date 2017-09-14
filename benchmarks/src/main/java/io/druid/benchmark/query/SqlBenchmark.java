@@ -136,7 +136,8 @@ public class SqlBenchmark
           {
             return new AllowAllAuthorizer();
           }
-        }
+        },
+        CalciteTests.getJsonMapper()
     );
     groupByQuery = GroupByQuery
         .builder()
