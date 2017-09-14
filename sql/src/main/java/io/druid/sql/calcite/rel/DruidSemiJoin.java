@@ -199,7 +199,7 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
   {
     Set<String> datasourceNames = Sets.newLinkedHashSet();
     datasourceNames.addAll(left.getDatasourceNames());
-    datasourceNames.addAll(right.getDatasourceNames());
+    //datasourceNames.addAll(right.getDatasourceNames());
 
     return Lists.newArrayList(datasourceNames);
   }

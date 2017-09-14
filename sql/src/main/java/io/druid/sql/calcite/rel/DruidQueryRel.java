@@ -87,7 +87,7 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
     );
   }
 
-  @Nullable
+  //@Nullable
   @Override
   public QueryDataSource asDataSource()
   {
@@ -194,7 +194,7 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
           .getJsonMapper()
           .writeValueAsString(queryBuilder.toQuery(druidTable.getDataSource(), getPlannerContext()));
     }
-    catch (IOException e) {
+    catch (Exception e) {
       throw new RuntimeException(e);
     }
 

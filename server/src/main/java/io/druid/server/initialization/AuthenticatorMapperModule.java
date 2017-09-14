@@ -76,8 +76,8 @@ public class AuthenticatorMapperModule implements DruidModule
     @Inject
     public void inject(Injector injector, Properties props, JsonConfigurator configurator)
     {
-      this.authConfig = injector.getInstance(AuthConfig.class);
       this.injector = injector;
+      this.authConfig = injector.getInstance(AuthConfig.class);
       this.props = props;
       this.configurator = configurator;
     }

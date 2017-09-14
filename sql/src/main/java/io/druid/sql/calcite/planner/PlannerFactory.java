@@ -21,7 +21,6 @@ package io.druid.sql.calcite.planner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import io.druid.guice.annotations.Json;
 import io.druid.math.expr.ExprMacroTable;
 import io.druid.server.QueryLifecycleFactory;
 import io.druid.server.security.AuthConfig;
@@ -84,6 +83,7 @@ public class PlannerFactory
     this.authConfig = authConfig;
     this.authorizerMapper = authorizerMapper;
     this.authenticatorMapper = authenticatorMapper;
+    this.jsonMapper = null;
   }
 
   public DruidPlanner createPlanner(final Map<String, Object> queryContext)
@@ -96,7 +96,7 @@ public class PlannerFactory
         authorizerMapper,
         queryContext
     );
-    final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, plannerContext);
+    final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, plannerContext, jsonMapper);
     final FrameworkConfig frameworkConfig = Frameworks
         .newConfigBuilder()
         .parserConfig(PARSER_CONFIG)

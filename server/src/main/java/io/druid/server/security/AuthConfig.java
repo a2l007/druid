@@ -21,6 +21,7 @@ package io.druid.server.security;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.inject.Inject;
 
 import java.util.List;
 

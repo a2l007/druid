@@ -162,13 +162,9 @@ public class DruidAvaticaHandlerTest
             operatorTable,
             macroTable,
             plannerConfig,
-<<<<<<< HEAD
-            CalciteTests.getJsonMapper()
-=======
             new AuthConfig(),
             new AuthenticatorMapper(defaultMap, "allowAll"),
             new AuthorizerMapper(testAuthorizerMap)
->>>>>>> a3343ee80069908f4d95e3b1ff1facb5c8af2911
         ),
         AVATICA_CONFIG,
         new AuthConfig(),
@@ -613,13 +609,9 @@ public class DruidAvaticaHandlerTest
             operatorTable,
             macroTable,
             plannerConfig,
-<<<<<<< HEAD
-            CalciteTests.getJsonMapper()
-=======
             new AuthConfig(),
             new AuthenticatorMapper(defaultMap, "allowAll"),
             new AuthorizerMapper(testAuthorizerMap)
->>>>>>> a3343ee80069908f4d95e3b1ff1facb5c8af2911
         ),
         smallFrameConfig,
         new AuthConfig(),
