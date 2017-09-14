@@ -21,6 +21,7 @@ package io.druid.sql.calcite.planner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+import io.druid.guice.annotations.Json;
 import io.druid.math.expr.ExprMacroTable;
 import io.druid.server.QueryLifecycleFactory;
 import io.druid.server.security.AuthConfig;

@@ -39,6 +39,7 @@ import io.druid.server.security.Authenticator;
 import io.druid.server.security.AuthenticatorMapper;
 import io.druid.server.security.AllowAllAuthenticator;
 
+import javax.validation.Validator;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,7 @@ public class AuthenticatorMapperModule implements DruidModule
 {
   private static final String AUTHENTICATOR_PROPERTIES_FORMAT_STRING = "druid.auth.authenticator.%s";
   private static Logger log = new Logger(AuthenticatorMapperModule.class);
+  private AuthConfig authConfig;
 
   @Override
   public void configure(Binder binder)
@@ -55,6 +57,7 @@ public class AuthenticatorMapperModule implements DruidModule
     binder.bind(AuthenticatorMapper.class)
           .toProvider(new AuthenticatorMapperProvider())
           .in(LazySingleton.class);
+   // binder.bind(AuthConfig.class).toInstance(authConfig);
 
     LifecycleModule.register(binder, AuthenticatorMapper.class);
   }

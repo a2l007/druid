@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "denyAll", value = DenyAllAuthorizer.class),
+    //@JsonSubTypes.Type(name = "denyAll", value = DenyAllAuthorizer.class),
     @JsonSubTypes.Type(name = "allowAll", value = AllowAllAuthorizer.class)
 })
 /**

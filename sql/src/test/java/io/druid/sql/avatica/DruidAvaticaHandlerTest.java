@@ -612,12 +612,8 @@ public class DruidAvaticaHandlerTest
             plannerConfig,
             new AuthConfig(),
             new AuthenticatorMapper(defaultMap, "allowAll"),
-<<<<<<< HEAD
-            new AuthorizerMapper(testAuthorizerMap)
-=======
             new AuthorizerMapper(testAuthorizerMap),
             CalciteTests.getJsonMapper()
->>>>>>> 65895b1360547d0aa74806af0121a08f1045a0d3
         ),
         smallFrameConfig,
         new AuthConfig(),
