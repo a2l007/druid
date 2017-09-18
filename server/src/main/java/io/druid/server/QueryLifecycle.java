@@ -20,6 +20,7 @@
 package io.druid.server;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.DirectDruidClient;
 import io.druid.java.util.common.DateTimes;
@@ -110,20 +111,16 @@ public class QueryLifecycle
    * is unauthorized, an IllegalStateException will be thrown. Logs and metrics are emitted when the Sequence is
    * either fully iterated or throws an exception.
    *
-   * @param query             the query
-   * @param user              authentication token from the request
-   * @param namespace         authentication namespace of the request
-   * @param remoteAddress     remote address, for logging; or null if unknown
-   * @param needsAuth         if false, skip the authorization check. This is useful when the authorization check has
-   *                          already been performed (e.g. in SQL handling, where authorization takes place in the
-   *                          planning step)
+   * @param query                   the query
+   * @param authenticationResult    authentication result indicating identity of the requester
+   * @param remoteAddress           remote address, for logging; or null if unknown
    *
    * @return results
    */
   @SuppressWarnings("unchecked")
   public <T> Sequence<T> runSimple(
       final Query<T> query,
-      @Nullable final AuthenticationResult authenticationResult,
+      final AuthenticationResult authenticationResult,
       @Nullable final String remoteAddress
   )
   {
@@ -132,7 +129,7 @@ public class QueryLifecycle
     final Sequence<T> results;
 
     try {
-      final Access access = authorize(authenticationResult, null);
+      final Access access = authorize(authenticationResult);
       if (!access.isAllowed()) {
         throw new ISE("Unauthorized");
       }
@@ -185,6 +182,37 @@ public class QueryLifecycle
   /**
    * Authorize the query. Will return an Access object denoting whether the query is authorized or not.
    *
+   * @param authenticationResult authentication result indicating the identity of the requester
+   *
+   * @return authorization result
+   *
+   * */
+  public Access authorize(
+      final AuthenticationResult authenticationResult
+  )
+  {
+    transition(State.INITIALIZED, State.AUTHORIZING);
+    Access authResult = AuthorizationUtils.authorizeAllResourceActions(
+        authenticationResult,
+        Iterables.transform(
+            queryPlus.getQuery().getDataSource().getNames(),
+            AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
+        ),
+        authorizerMapper
+    );
+
+    if (!authResult.isAllowed()) {
+      // Not authorized; go straight to Jail, do not pass Go.
+      transition(State.AUTHORIZING, State.DONE);
+    } else {
+      transition(State.AUTHORIZING, State.AUTHORIZED);
+    }
+    return authResult;
+  }
+
+  /**
+   * Authorize the query. Will return an Access object denoting whether the query is authorized or not.
+   *
    * @param token authentication token from the request
    * @param namespace namespace of the authentication token
    * @param req HTTP request object of the request. If provided, the auth-related fields in the HTTP request
@@ -194,27 +222,18 @@ public class QueryLifecycle
    *
    * */
   public Access authorize(
-      @Nullable final AuthenticationResult authenticationResult,
       @Nullable HttpServletRequest req
   )
   {
     transition(State.INITIALIZED, State.AUTHORIZING);
-    Access authResult;
-    if (req != null) {
-      authResult = AuthorizationUtils.authorizeAllResourceActions(
-          req,
-          queryPlus.getQuery().getDataSource().getNames(),
-          AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR,
-          authorizerMapper
-      );
-    } else {
-      authResult = AuthorizationUtils.authorizeAllResourceActions(
-          queryPlus.getQuery().getDataSource().getNames(),
-          AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR,
-          authenticationResult,
-          authorizerMapper
-      );
-    }
+    Access authResult = AuthorizationUtils.authorizeAllResourceActions(
+        req,
+        Iterables.transform(
+            queryPlus.getQuery().getDataSource().getNames(),
+            AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
+        ),
+        authorizerMapper
+    );
 
     if (!authResult.isAllowed()) {
       // Not authorized; go straight to Jail, do not pass Go.

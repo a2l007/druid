@@ -91,7 +91,7 @@
             <groupId>net.thisptr</groupId>
             <artifactId>jackson-jq</artifactId>
         </dependency>
-        <dependency>
+     <!--   <dependency>
             <groupId>yahoo.yinst.zms_java_client</groupId>
             <artifactId>zms_java_client</artifactId>
             <version>1.3.55</version>
@@ -120,7 +120,7 @@
             <groupId>yahoo.yinst.yjava_ysecure</groupId>
             <artifactId>yjava_ysecure</artifactId>
             <version>1.46.2</version>
-        </dependency>
+        </dependency>-->
         <!-- Tests -->
         <dependency>
             <groupId>junit</groupId>

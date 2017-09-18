@@ -20,7 +20,10 @@
 package io.druid.server.initialization;
 
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
@@ -31,6 +34,7 @@ import io.druid.guice.JsonConfigurator;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.initialization.DruidModule;
+import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.logger.Logger;
@@ -39,7 +43,6 @@ import io.druid.server.security.Authenticator;
 import io.druid.server.security.AuthenticatorMapper;
 import io.druid.server.security.AllowAllAuthenticator;
 
-import javax.validation.Validator;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +70,7 @@ public class AuthenticatorMapperModule implements DruidModule
   public List<? extends Module> getJacksonModules()
   {
     return Collections.EMPTY_LIST;
+
   }
 
   private static class AuthenticatorMapperProvider implements Provider<AuthenticatorMapper>
@@ -93,11 +97,14 @@ public class AuthenticatorMapperModule implements DruidModule
 
       List<String> authenticators = authConfig.getAuthenticatorChain();
 
-      // If user didn't configure any Authenticators, use the default which accepts all requests.
-      if (authenticators == null || authenticators.isEmpty()) {
-        Map<String, Authenticator> defaultMap = Maps.newHashMap();
-        defaultMap.put("allowAll", new AllowAllAuthenticator());
-        return new AuthenticatorMapper(defaultMap, "allowAll");
+      // Default configuration is to allow all requests.
+      if (authenticators == null) {
+        authenticatorMap.put("allowAll", new AllowAllAuthenticator());
+        return new AuthenticatorMapper(authenticatorMap, "allowAll");
+      }
+
+      if (authenticators.isEmpty()) {
+        throw new IAE("Must have at least one Authenticator configured.");
       }
 
       for (String authenticatorName : authenticators) {

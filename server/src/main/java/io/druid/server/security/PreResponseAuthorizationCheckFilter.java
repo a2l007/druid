@@ -21,9 +21,8 @@ package io.druid.server.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
+import com.metamx.emitter.EmittingLogger;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.StringUtils;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryInterruptedException;
 import io.druid.server.DruidNode;
 import org.eclipse.jetty.server.Response;
@@ -49,19 +48,16 @@ import java.util.Set;
  */
 public class PreResponseAuthorizationCheckFilter implements Filter
 {
-  private static final Logger log = new Logger(PreResponseAuthorizationCheckFilter.class);
+  private static final EmittingLogger log = new EmittingLogger(PreResponseAuthorizationCheckFilter.class);
 
-  private final AuthConfig authConfig;
   private final List<Authenticator> authenticators;
   private final ObjectMapper jsonMapper;
 
   public PreResponseAuthorizationCheckFilter(
-      AuthConfig authConfig,
       List<Authenticator> authenticators,
       ObjectMapper jsonMapper
   )
   {
-    this.authConfig = authConfig;
     this.authenticators = authenticators;
     this.jsonMapper = jsonMapper;
   }
@@ -78,31 +74,10 @@ public class PreResponseAuthorizationCheckFilter implements Filter
   ) throws IOException, ServletException
   {
     final HttpServletResponse response = (HttpServletResponse) servletResponse;
+    final HttpServletRequest request = (HttpServletRequest) servletRequest;
 
-    // Since this is the last filter in the chain, some previous authentication filter
-    // should have placed an authentication result in the request.
-    // If not, send an authentication challenge.
     if (servletRequest.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT) == null) {
-      Set<String> supportedAuthSchemes = Sets.newHashSet();
-      for (Authenticator authenticator : authenticators) {
-        String challengeHeader = authenticator.getAuthChallengeHeader();
-        if (challengeHeader != null) {
-          supportedAuthSchemes.add(challengeHeader);
-        }
-      }
-      for (String authScheme : supportedAuthSchemes) {
-        response.addHeader("WWW-Authenticate", authScheme);
-      }
-      QueryInterruptedException unauthorizedError = new QueryInterruptedException(
-          QueryInterruptedException.UNAUTHORIZED,
-          null,
-          null,
-          DruidNode.getDefaultHost()
-      );
-      unauthorizedError.setStackTrace(new StackTraceElement[0]);
-      OutputStream out = servletResponse.getOutputStream();
-      sendJsonError(response, Response.SC_UNAUTHORIZED, jsonMapper.writeValueAsString(unauthorizedError), out);
-      out.close();
+      handleUnauthenticatedRequest(response);
       return;
     }
 
@@ -110,15 +85,22 @@ public class PreResponseAuthorizationCheckFilter implements Filter
 
     Boolean authInfoChecked = (Boolean) servletRequest.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED);
     if (authInfoChecked == null && !errorOverridesMissingAuth(response.getStatus())) {
-      String errorMsg = StringUtils.format(
-          "Request did not have an authorization check performed: %s",
-          ((HttpServletRequest) servletRequest).getRequestURI()
-      );
       // Note: rather than throwing an exception here, it would be nice to blank out the original response
       // since the request didn't have any authorization checks performed. However, this breaks proxying
       // (e.g. OverlordServletProxy), so this is not implemented for now.
-      log.error(errorMsg);
-      throw new ISE(errorMsg);
+      handleAuthorizationCheckError(
+          "Request did not have an authorization check performed.",
+          request,
+          response
+      );
+    }
+
+    if (authInfoChecked != null && !authInfoChecked && response.getStatus() != Response.SC_FORBIDDEN) {
+      handleAuthorizationCheckError(
+          "Request's authorization check failed but status code was not 403.",
+          request,
+          response
+      );
     }
   }
 
@@ -126,6 +108,60 @@ public class PreResponseAuthorizationCheckFilter implements Filter
   public void destroy()
   {
 
+  }
+
+  private void handleUnauthenticatedRequest(
+      final HttpServletResponse response
+  ) throws IOException
+  {
+    // Since this is the last filter in the chain, some previous authentication filter
+    // should have placed an authentication result in the request.
+    // If not, send an authentication challenge.
+    Set<String> supportedAuthSchemes = Sets.newHashSet();
+    for (Authenticator authenticator : authenticators) {
+      String challengeHeader = authenticator.getAuthChallengeHeader();
+      if (challengeHeader != null) {
+        supportedAuthSchemes.add(challengeHeader);
+      }
+    }
+    for (String authScheme : supportedAuthSchemes) {
+      response.addHeader("WWW-Authenticate", authScheme);
+    }
+    QueryInterruptedException unauthorizedError = new QueryInterruptedException(
+        QueryInterruptedException.UNAUTHORIZED,
+        null,
+        null,
+        DruidNode.getDefaultHost()
+    );
+    unauthorizedError.setStackTrace(new StackTraceElement[0]);
+    OutputStream out = response.getOutputStream();
+    sendJsonError(response, Response.SC_UNAUTHORIZED, jsonMapper.writeValueAsString(unauthorizedError), out);
+    out.close();
+    return;
+  }
+
+  private void handleAuthorizationCheckError(
+      String errorMsg,
+      HttpServletRequest servletRequest,
+      HttpServletResponse servletResponse
+  )
+  {
+    // Send out an alert so there's a centralized collection point for seeing errors of this nature
+    log.makeAlert(errorMsg)
+       .addData("uri", servletRequest.getRequestURI())
+       .addData("method", servletRequest.getMethod())
+       .emit();
+
+    if (servletResponse.isCommitted()) {
+      throw new ISE(errorMsg);
+    } else {
+      try {
+        servletResponse.sendError(Response.SC_FORBIDDEN);
+      }
+      catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   private static boolean errorOverridesMissingAuth(int status)

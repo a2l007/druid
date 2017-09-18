@@ -33,7 +33,9 @@ public class AuthenticationUtils
   )
   {
     for (Authenticator authenticator : authenticators) {
-      FilterHolder holder = new FilterHolder(authenticator.getFilter());
+      FilterHolder holder = new FilterHolder(
+          new AuthenticationWrappingFilter(authenticator.getFilter())
+      );
       if (authenticator.getInitParameters() != null) {
         holder.setInitParameters(authenticator.getInitParameters());
       }
@@ -69,13 +71,12 @@ public class AuthenticationUtils
   public static void addPreResponseAuthorizationCheckFilter(
       ServletContextHandler root,
       List<Authenticator> authenticators,
-      ObjectMapper jsonMapper,
-      AuthConfig authConfig
+      ObjectMapper jsonMapper
   )
   {
     root.addFilter(
         new FilterHolder(
-            new PreResponseAuthorizationCheckFilter(authConfig, authenticators, jsonMapper)
+            new PreResponseAuthorizationCheckFilter(authenticators, jsonMapper)
         ),
         "/*",
         null

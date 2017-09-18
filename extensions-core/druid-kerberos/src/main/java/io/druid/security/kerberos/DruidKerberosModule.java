@@ -20,6 +20,7 @@
 package io.druid.security.kerberos;
 
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
@@ -37,7 +38,7 @@ public class DruidKerberosModule implements DruidModule
   {
     return ImmutableList.of(
         new SimpleModule("DruidKerberos").registerSubtypes(
-            KerberosAuthenticator.class
+            new NamedType(KerberosAuthenticator.class, "kerberos")
         )
     );
   }
