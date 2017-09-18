@@ -52,7 +52,10 @@ public class AuthenticatorMapperModule implements DruidModule
 {
   private static final String AUTHENTICATOR_PROPERTIES_FORMAT_STRING = "druid.auth.authenticator.%s";
   private static Logger log = new Logger(AuthenticatorMapperModule.class);
+<<<<<<< HEAD
   private AuthConfig authConfig;
+=======
+>>>>>>> c2a0e753b618027c18541b550f40c1a757380530
 
   @Override
   public void configure(Binder binder)
@@ -60,7 +63,10 @@ public class AuthenticatorMapperModule implements DruidModule
     binder.bind(AuthenticatorMapper.class)
           .toProvider(new AuthenticatorMapperProvider())
           .in(LazySingleton.class);
+<<<<<<< HEAD
    // binder.bind(AuthConfig.class).toInstance(authConfig);
+=======
+>>>>>>> c2a0e753b618027c18541b550f40c1a757380530
 
     LifecycleModule.register(binder, AuthenticatorMapper.class);
   }
@@ -70,7 +76,10 @@ public class AuthenticatorMapperModule implements DruidModule
   public List<? extends Module> getJacksonModules()
   {
     return Collections.EMPTY_LIST;
+<<<<<<< HEAD
 
+=======
+>>>>>>> c2a0e753b618027c18541b550f40c1a757380530
   }
 
   private static class AuthenticatorMapperProvider implements Provider<AuthenticatorMapper>
@@ -83,8 +92,13 @@ public class AuthenticatorMapperModule implements DruidModule
     @Inject
     public void inject(Injector injector, Properties props, JsonConfigurator configurator)
     {
+<<<<<<< HEAD
       this.injector = injector;
       this.authConfig = injector.getInstance(AuthConfig.class);
+=======
+      this.authConfig = injector.getInstance(AuthConfig.class);
+      this.injector = injector;
+>>>>>>> c2a0e753b618027c18541b550f40c1a757380530
       this.props = props;
       this.configurator = configurator;
     }

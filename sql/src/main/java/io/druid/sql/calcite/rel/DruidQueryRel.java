@@ -36,6 +36,8 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import java.util.List;
+import javax.annotation.Nullable;
+import java.io.IOException;
 
 /**
  * DruidRel that uses a "table" dataSource.

@@ -38,7 +38,7 @@ public class DruidKerberosModule implements DruidModule
   {
     return ImmutableList.of(
         new SimpleModule("DruidKerberos").registerSubtypes(
-            new NamedType(KerberosAuthenticator.class, "kerberos")
+            KerberosAuthenticator.class
         )
     );
   }
