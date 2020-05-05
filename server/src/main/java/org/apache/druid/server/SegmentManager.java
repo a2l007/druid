@@ -22,6 +22,7 @@ package org.apache.druid.server;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
+import org.apache.druid.client.selector.ServerSelector;
 import org.apache.druid.common.guava.SettableSupplier;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.emitter.EmittingLogger;
@@ -38,9 +39,11 @@ import org.apache.druid.timeline.partition.PartitionHolder;
 import org.apache.druid.timeline.partition.ShardSpec;
 import org.apache.druid.utils.CollectionUtils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * This class is responsible for managing data sources and their states like timeline, total segment size, and number of
@@ -149,13 +152,30 @@ public class SegmentManager
    */
   public Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> getTimeline(DataSourceAnalysis analysis)
   {
-    final TableDataSource tableDataSource =
+    final List<TableDataSource> tableDataSource =
         analysis.getBaseTableDataSource()
                 .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
 
-    return Optional.ofNullable(dataSources.get(tableDataSource.getName())).map(DataSourceState::getTimeline);
+    return Optional.ofNullable(dataSources.get(tableDataSource.get(0).getName())).map(DataSourceState::getTimeline);
   }
 
+  public Optional<Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>>> getTimelineMap(final DataSourceAnalysis analysis)
+  {
+    final List<TableDataSource> tableDataSource =
+        analysis.getBaseTableDataSource().get();
+    //TODO Uncomment below
+                //.orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
+
+      Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> timelineMap = analysis.getDataSource()
+                                                                                           .getTableNames()
+                                                                                           .stream().filter(a -> dataSources.containsKey(a))
+                                                                                           //   .map(name -> timelines.get(name))
+                                                                                           .collect(Collectors.toMap(
+                                                                                               name -> name,
+                                                                                               value -> dataSources.get(
+                                                                                                   value).getTimeline()));
+      return Optional.of(timelineMap);
+  }
   /**
    * Load a single segment.
    *

@@ -26,6 +26,7 @@ import org.apache.druid.query.DataSource;
 import org.apache.druid.query.JoinDataSource;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryDataSource;
+import org.apache.druid.query.MultiDataSource;
 import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.UnionDataSource;
 import org.apache.druid.query.spec.QuerySegmentSpec;
@@ -36,6 +37,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Analysis of a datasource for purposes of deciding how to execute a particular query.
@@ -176,13 +178,17 @@ public class DataSourceAnalysis
    * Returns the same datasource as {@link #getBaseDataSource()}, but only if it is a table. Useful on data servers,
    * since they generally can only handle queries where the base datasource is a table.
    */
-  public Optional<TableDataSource> getBaseTableDataSource()
+  public Optional<List<TableDataSource>> getBaseTableDataSource()
   {
     if (baseDataSource instanceof TableDataSource) {
-      return Optional.of((TableDataSource) baseDataSource);
+      return Optional.of(Collections.singletonList((TableDataSource) baseDataSource));
+    } else if (baseDataSource instanceof MultiDataSource) {
+      return Optional.of(baseDataSource.getTableNames().stream().map(d -> new TableDataSource(d)).collect(Collectors.toList()));
     } else {
+      //TODO Remove comments
       return Optional.empty();
     }
+
   }
 
   /**

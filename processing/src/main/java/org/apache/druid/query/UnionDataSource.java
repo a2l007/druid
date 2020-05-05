@@ -26,12 +26,19 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.timeline.Overshadowable;
+import org.apache.druid.timeline.TimelineLookup;
+import org.apache.druid.timeline.TimelineObjectHolder;
+import org.joda.time.Interval;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class UnionDataSource implements DataSource
+public class UnionDataSource<T extends Overshadowable<T>> implements MultiDataSource<T>
+//public class UnionDataSource implements DataSource
+
 {
   @JsonProperty
   private final List<TableDataSource> dataSources;
@@ -134,4 +141,20 @@ public class UnionDataSource implements DataSource
            "dataSources=" + dataSources +
            '}';
   }
+
+  @Override
+  public <T extends Overshadowable<T>> List<TimelineObjectHolder<String, T>> getSegments(
+      List<Interval> intervals,
+      Map<String, ? extends TimelineLookup<String, T>> timelineMap
+  )
+  {
+    return intervals.stream()
+                    .flatMap(i -> getDataSources().stream().filter(d ->timelineMap.containsKey(d.getName()))
+                                                  .flatMap(n -> timelineMap.get(n.getName()).lookup(i).stream()))
+                    .collect(Collectors.toList());
+    //}
+    //intervals.stream().flatMap(i -> timelineMap.get(query.getDataSource().toString()).lookup(i).stream()).collect(Collectors.toList()
+  }
+
+
 }

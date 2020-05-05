@@ -44,6 +44,7 @@ import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.server.coordination.DruidServerMetadata;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentId;
+import org.apache.druid.timeline.TimelineLookup;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 import org.apache.druid.timeline.partition.PartitionChunk;
 
@@ -290,17 +291,47 @@ public class BrokerServerView implements TimelineServerView
     }
   }
 
+ /* Before:
+*/
   @Override
   public Optional<VersionedIntervalTimeline<String, ServerSelector>> getTimeline(final DataSourceAnalysis analysis)
   {
-    final TableDataSource tableDataSource =
-        analysis.getBaseTableDataSource()
-                .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
+    final List<TableDataSource> tableDataSource =
+        analysis.getBaseTableDataSource().orElse(null);
+                //.orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
 
     synchronized (lock) {
-      return Optional.ofNullable(timelines.get(tableDataSource.getName()));
+      return Optional.ofNullable(timelines.get(tableDataSource.get(0).getName()));
     }
   }
+
+/*
+ * TODO: Remove the following piece of crapode
+ */
+  @Override
+  public Optional<Map<String, VersionedIntervalTimeline<String, ServerSelector>>> getTimelineMap(final DataSourceAnalysis analysis)
+  {
+    //if (analysis.getDataSource() instanceof MultiDataSource) {
+
+    //}
+    final List<TableDataSource> tableDataSource =
+        analysis.getBaseTableDataSource().orElse(null);
+    //TODO Uncomment following line
+               // .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
+
+    synchronized (lock) {
+      Map<String, VersionedIntervalTimeline<String, ServerSelector>> timelineMap = analysis.getDataSource()
+                                                                                           .getTableNames()
+                                                                                           .stream().filter(a->timelines.containsKey(a))
+                                                                                           //   .map(name -> timelines.get(name))
+                                                                                           .collect(Collectors.toMap(
+                                                                                               name -> name,
+                                                                                               value -> timelines.get(
+                                                                                                   value)));
+      return Optional.of(timelineMap);
+    }
+  }
+
 
   @Override
   public void registerTimelineCallback(final Executor exec, final TimelineCallback callback)

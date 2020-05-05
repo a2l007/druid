@@ -123,6 +123,7 @@ import org.apache.druid.server.scheduling.ManualQueryPrioritizationStrategy;
 import org.apache.druid.server.scheduling.NoQueryLaningStrategy;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentId;
+import org.apache.druid.timeline.TimelineLookup;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 import org.apache.druid.timeline.partition.NoneShardSpec;
 import org.apache.druid.timeline.partition.ShardSpec;
@@ -2399,6 +2400,14 @@ public class CachingClusteredClientTest
           public Optional<VersionedIntervalTimeline<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
           {
             return Optional.of(timeline);
+          }
+
+          @Override
+          public Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimelineMap(
+              DataSourceAnalysis analysis
+          )
+          {
+            return Optional.empty();
           }
 
           @Override

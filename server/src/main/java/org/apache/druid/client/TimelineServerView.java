@@ -25,8 +25,10 @@ import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.server.coordination.DruidServerMetadata;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.TimelineLookup;
+import org.apache.druid.timeline.VersionedIntervalTimeline;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
@@ -45,6 +47,9 @@ public interface TimelineServerView extends ServerView
    * @throws IllegalStateException if 'analysis' does not represent a scan-based datasource of a single table
    */
   Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis);
+
+  Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimelineMap(DataSourceAnalysis analysis);
+
 
   /**
    * Returns a list of {@link ImmutableDruidServer}

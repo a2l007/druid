@@ -42,6 +42,7 @@ public class UnionQueryRunner<T> implements QueryRunner<T>
   {
     Query<T> query = queryPlus.getQuery();
     DataSource dataSource = query.getDataSource();
+    /*
     if (dataSource instanceof UnionDataSource) {
 
       return new MergeSequence<>(
@@ -64,8 +65,10 @@ public class UnionQueryRunner<T> implements QueryRunner<T>
           )
       );
     } else {
+
+*/
       return baseRunner.run(queryPlus, responseContext);
     }
-  }
+  //}
 
 }

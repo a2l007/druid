@@ -68,6 +68,7 @@ import org.apache.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
@@ -164,6 +165,7 @@ public class ServerManager implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
   {
+    //TODO Check if the query here has information about segment specs specific to each datasource.
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (factory == null) {
       log.makeAlert("Unknown query type, [%s]", query.getClass())
@@ -176,9 +178,13 @@ public class ServerManager implements QuerySegmentWalker
     final DataSourceAnalysis analysis = DataSourceAnalysis.forDataSource(query.getDataSource());
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
-    final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline;
-    final Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> maybeTimeline =
-        segmentManager.getTimeline(analysis);
+    //TODO Change happens here
+    //Assuming Table name order is identical
+
+    final Map<String,VersionedIntervalTimeline<String, ReferenceCountingSegment>> timeline;
+
+    final Optional<Map<String,VersionedIntervalTimeline<String, ReferenceCountingSegment>>> maybeTimeline =
+        segmentManager.getTimelineMap(analysis);
 
     // Make sure this query type can handle the subquery, if present.
     if (analysis.isQuery() && !toolChest.canPerformSubquery(((QueryDataSource) analysis.getDataSource()).getQuery())) {
@@ -210,11 +216,36 @@ public class ServerManager implements QuerySegmentWalker
         .create(specs)
         .transformCat(
             descriptor -> {
-              final PartitionHolder<ReferenceCountingSegment> entry = timeline.findEntry(
-                  descriptor.getInterval(),
-                  descriptor.getVersion()
-              );
 
+              for (VersionedIntervalTimeline<String, ReferenceCountingSegment> timelineEntry : timeline.values()) {
+                final PartitionHolder<ReferenceCountingSegment> entry = timelineEntry.findEntry(
+                    descriptor.getInterval(),
+                    descriptor.getVersion()
+                );
+                if (entry != null) {
+                  PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(descriptor.getPartitionNumber());
+                  if (chunk == null) {
+                    return Collections.singletonList(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
+                  } else {
+                    final ReferenceCountingSegment segment = chunk.getObject();
+                    return Collections.singletonList(
+                        buildAndDecorateQueryRunner(
+                            factory,
+                            toolChest,
+                            segmentMapFn.apply(segment),
+                            segment.referenceCounter(),
+                            descriptor,
+                            cpuTimeAccumulator
+                        )
+                    );
+                  }
+                }
+              }
+              return Collections.singletonList(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
+            }
+        );
+
+              /* Before
               if (entry == null) {
                 return Collections.singletonList(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
               }
@@ -237,6 +268,8 @@ public class ServerManager implements QuerySegmentWalker
               );
             }
         );
+
+               */
 
     return CPUTimeMetricQueryRunner.safeBuild(
         new FinalizeResultsQueryRunner<>(
