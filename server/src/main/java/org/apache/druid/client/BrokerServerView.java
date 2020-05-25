@@ -21,6 +21,7 @@ package org.apache.druid.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import org.apache.druid.client.selector.QueryableDruidServer;
@@ -29,7 +30,6 @@ import org.apache.druid.client.selector.TierSelectorStrategy;
 import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.guice.annotations.EscalatedClient;
 import org.apache.druid.guice.annotations.Smile;
-import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStart;
@@ -44,11 +44,11 @@ import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.server.coordination.DruidServerMetadata;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentId;
-import org.apache.druid.timeline.TimelineLookup;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 import org.apache.druid.timeline.partition.PartitionChunk;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -291,44 +291,51 @@ public class BrokerServerView implements TimelineServerView
     }
   }
 
- /* Before:
-*/
+  /* Before:
+   */
   @Override
   public Optional<VersionedIntervalTimeline<String, ServerSelector>> getTimeline(final DataSourceAnalysis analysis)
   {
     final List<TableDataSource> tableDataSource =
         analysis.getBaseTableDataSource().orElse(null);
-                //.orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
+    //.orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
 
     synchronized (lock) {
-      return Optional.ofNullable(timelines.get(tableDataSource.get(0).getName()));
+      return Optional.ofNullable(timelines.get(Iterables.getOnlyElement(tableDataSource).getName()));
     }
   }
 
-/*
- * TODO: Remove the following piece of crapode
- */
+  /*
+   * TODO: Remove the following piece of crapode
+   */
   @Override
-  public Optional<Map<String, VersionedIntervalTimeline<String, ServerSelector>>> getTimelineMap(final DataSourceAnalysis analysis)
+  public Optional<Map<String, VersionedIntervalTimeline<String, ServerSelector>>> getTimelineMap(final List<TableDataSource> tableDataSources)
   {
-    //if (analysis.getDataSource() instanceof MultiDataSource) {
+    /*final List<TableDataSource> tableDataSources =
+        analysis.getBaseTableDataSource()
+                .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
 
-    //}
-    final List<TableDataSource> tableDataSource =
-        analysis.getBaseTableDataSource().orElse(null);
-    //TODO Uncomment following line
-               // .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
+     */
 
     synchronized (lock) {
-      Map<String, VersionedIntervalTimeline<String, ServerSelector>> timelineMap = analysis.getDataSource()
-                                                                                           .getTableNames()
-                                                                                           .stream().filter(a->timelines.containsKey(a))
-                                                                                           //   .map(name -> timelines.get(name))
-                                                                                           .collect(Collectors.toMap(
-                                                                                               name -> name,
-                                                                                               value -> timelines.get(
-                                                                                                   value)));
-      return Optional.of(timelineMap);
+      /*
+      Map<String, VersionedIntervalTimeline<String, ServerSelector>> timelineMap = tableDataSources
+          .stream()
+          .map(TableDataSource::getName)
+          .filter(timelines::containsKey)
+          .collect(Collectors.toMap(
+              tableName -> tableName,
+              timelines::get
+          ));
+       */
+      Map<String, VersionedIntervalTimeline<String, ServerSelector>> timelineMap = new LinkedHashMap<>();
+      for (TableDataSource tableDataSource : tableDataSources) {
+        String tableName = tableDataSource.getName();
+        if (timelines.containsKey(tableName)) {
+          timelineMap.put(tableName, timelines.get(tableName));
+        }
+      }
+      return timelineMap.isEmpty() ? Optional.empty() : Optional.of(timelineMap);
     }
   }
 

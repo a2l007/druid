@@ -21,11 +21,11 @@ package org.apache.druid.client;
 
 import org.apache.druid.client.selector.ServerSelector;
 import org.apache.druid.query.QueryRunner;
+import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.server.coordination.DruidServerMetadata;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.TimelineLookup;
-import org.apache.druid.timeline.VersionedIntervalTimeline;
 
 import java.util.List;
 import java.util.Map;
@@ -48,7 +48,7 @@ public interface TimelineServerView extends ServerView
    */
   Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis);
 
-  Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimelineMap(DataSourceAnalysis analysis);
+  Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimelineMap(List<TableDataSource> tableDataSources);
 
 
   /**

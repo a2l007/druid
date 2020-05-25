@@ -24,9 +24,9 @@ import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.DataSource;
 import org.apache.druid.query.JoinDataSource;
+import org.apache.druid.query.MultiDataSource;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryDataSource;
-import org.apache.druid.query.MultiDataSource;
 import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.UnionDataSource;
 import org.apache.druid.query.spec.QuerySegmentSpec;
@@ -37,11 +37,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Analysis of a datasource for purposes of deciding how to execute a particular query.
- *
+ * <p>
  * The analysis breaks a datasource down in the following way:
  *
  * <pre>
@@ -55,20 +54,20 @@ import java.util.stream.Collectors;
  *  (bottom-leftmost) -->  Db Dj  <---- into the base datasource
  *
  * </pre>
- *
+ * <p>
  * The base datasource (Db) is returned by {@link #getBaseDataSource()}. The other leaf datasources are returned by
  * {@link #getPreJoinableClauses()}. The outer query datasources are available as part of {@link #getDataSource()},
  * which just returns the original datasource that was provided for analysis.
- *
+ * <p>
  * The base datasource (Db) will never be a join, but it can be any other type of datasource (table, query, etc).
  * Note that join trees are only flattened if they occur at the top of the overall tree (or underneath an outer query),
  * and that join trees are only flattened to the degree that they are left-leaning. Due to these facts, it is possible
  * for the base or leaf datasources to include additional joins.
- *
+ * <p>
  * The base datasource is the one that will be considered by the core Druid query stack for scanning via
  * {@link org.apache.druid.segment.Segment} and {@link org.apache.druid.segment.StorageAdapter}. The other leaf
  * datasources must be joinable onto the base data.
- *
+ * <p>
  * The idea here is to keep things simple and dumb. So we focus only on identifying left-leaning join trees, which map
  * neatly onto a series of hash table lookups at query time. The user/system generating the queries, e.g. the druid-sql
  * layer (or the end user in the case of native queries), is responsible for containing the smarts to structure the
@@ -183,7 +182,8 @@ public class DataSourceAnalysis
     if (baseDataSource instanceof TableDataSource) {
       return Optional.of(Collections.singletonList((TableDataSource) baseDataSource));
     } else if (baseDataSource instanceof MultiDataSource) {
-      return Optional.of(baseDataSource.getTableNames().stream().map(d -> new TableDataSource(d)).collect(Collectors.toList()));
+      return Optional.of(((MultiDataSource) baseDataSource).getDataSources());
+      //return Optional.of(baseDataSource.getTableNames().stream().map(d -> new TableDataSource(d)).collect(Collectors.toList()));
     } else {
       //TODO Remove comments
       return Optional.empty();

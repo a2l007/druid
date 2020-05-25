@@ -31,6 +31,8 @@ import org.apache.druid.timeline.TimelineLookup;
 import org.apache.druid.timeline.TimelineObjectHolder;
 import org.joda.time.Interval;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,6 +60,7 @@ public class UnionDataSource<T extends Overshadowable<T>> implements MultiDataSo
                       .collect(Collectors.toSet());
   }
 
+  @Override
   @JsonProperty
   public List<TableDataSource> getDataSources()
   {
@@ -143,18 +146,36 @@ public class UnionDataSource<T extends Overshadowable<T>> implements MultiDataSo
   }
 
   @Override
-  public <T extends Overshadowable<T>> List<TimelineObjectHolder<String, T>> getSegments(
+  public <T extends Overshadowable<T>> Map<String, List<TimelineObjectHolder<String, T>>> getSegments(
       List<Interval> intervals,
       Map<String, ? extends TimelineLookup<String, T>> timelineMap
   )
   {
-    return intervals.stream()
-                    .flatMap(i -> getDataSources().stream().filter(d ->timelineMap.containsKey(d.getName()))
-                                                  .flatMap(n -> timelineMap.get(n.getName()).lookup(i).stream()))
+    /*return intervals.stream()
+                    .flatMap(itvl -> getDataSources().stream()
+                                                     .map(TableDataSource::getName)
+                                                     .filter(timelineMap::containsKey)
+                                                     .flatMap(ds -> timelineMap.get(ds).lookup(itvl).stream()))
                     .collect(Collectors.toList());
+
+     */
+    //TODO Error handling needed here
+    Map<String, List<TimelineObjectHolder<String, T>>> segmentsMap = new HashMap<>();
+    for (String datasource : timelineMap.keySet()) {
+      for (Interval itvl : intervals) {
+        if (!segmentsMap.containsKey(datasource)) {
+          List<TimelineObjectHolder<String, T>> segList = new ArrayList<>();
+          segmentsMap.put(datasource, segList);
+        }
+        List<TimelineObjectHolder<String, T>> segmentList = segmentsMap.get(datasource);
+        segmentList.addAll(timelineMap.get(datasource).lookup(itvl));
+        segmentsMap.put(datasource, segmentList);
+      }
+    }
+
     //}
     //intervals.stream().flatMap(i -> timelineMap.get(query.getDataSource().toString()).lookup(i).stream()).collect(Collectors.toList()
+    return segmentsMap;
+
   }
-
-
 }

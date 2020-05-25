@@ -19,11 +19,7 @@
 
 package org.apache.druid.query;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
-import org.apache.druid.java.util.common.guava.MergeSequence;
 import org.apache.druid.java.util.common.guava.Sequence;
-import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.query.context.ResponseContext;
 
 public class UnionQueryRunner<T> implements QueryRunner<T>
@@ -67,8 +63,8 @@ public class UnionQueryRunner<T> implements QueryRunner<T>
     } else {
 
 */
-      return baseRunner.run(queryPlus, responseContext);
-    }
+    return baseRunner.run(queryPlus, responseContext);
+  }
   //}
 
 }

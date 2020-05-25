@@ -27,6 +27,7 @@ import org.apache.druid.client.ImmutableDruidServer;
 import org.apache.druid.client.TimelineServerView;
 import org.apache.druid.client.selector.ServerSelector;
 import org.apache.druid.query.QueryRunner;
+import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.server.coordination.DruidServerMetadata;
 import org.apache.druid.server.coordination.ServerType;
@@ -86,7 +87,7 @@ public class TestServerInventoryView implements TimelineServerView
 
   @Override
   public Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimelineMap(
-      DataSourceAnalysis analysis
+      List<TableDataSource> analysis
   )
   {
     return Optional.empty();

@@ -20,9 +20,9 @@
 package org.apache.druid.server;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
-import org.apache.druid.client.selector.ServerSelector;
 import org.apache.druid.common.guava.SettableSupplier;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.emitter.EmittingLogger;
@@ -39,11 +39,11 @@ import org.apache.druid.timeline.partition.PartitionHolder;
 import org.apache.druid.timeline.partition.ShardSpec;
 import org.apache.druid.utils.CollectionUtils;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * This class is responsible for managing data sources and their states like timeline, total segment size, and number of
@@ -156,26 +156,37 @@ public class SegmentManager
         analysis.getBaseTableDataSource()
                 .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
 
-    return Optional.ofNullable(dataSources.get(tableDataSource.get(0).getName())).map(DataSourceState::getTimeline);
+    return Optional.ofNullable(dataSources.get(Iterables.getOnlyElement(tableDataSource).getName()))
+                   .map(DataSourceState::getTimeline);
   }
 
   public Optional<Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>>> getTimelineMap(final DataSourceAnalysis analysis)
   {
-    final List<TableDataSource> tableDataSource =
-        analysis.getBaseTableDataSource().get();
-    //TODO Uncomment below
-                //.orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
+    final List<TableDataSource> tableDataSources =
+        analysis.getBaseTableDataSource()
+                .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
 
-      Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> timelineMap = analysis.getDataSource()
-                                                                                           .getTableNames()
-                                                                                           .stream().filter(a -> dataSources.containsKey(a))
-                                                                                           //   .map(name -> timelines.get(name))
-                                                                                           .collect(Collectors.toMap(
-                                                                                               name -> name,
-                                                                                               value -> dataSources.get(
-                                                                                                   value).getTimeline()));
-      return Optional.of(timelineMap);
+    /*
+    Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> timelineMap = tableDataSources
+        .stream()
+        .map(TableDataSource::getName)
+        .filter(dataSources::containsKey)
+        .collect(Collectors.toMap(
+            tableName -> tableName,
+            value -> dataSources.get(
+                value).getTimeline()
+        ));
+     */
+    Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> timelineMap = new LinkedHashMap<>();
+    for (TableDataSource tableDataSource : tableDataSources) {
+      String tableName = tableDataSource.getName();
+      if (dataSources.containsKey(tableName)) {
+        timelineMap.put(tableName, dataSources.get(tableName).getTimeline());
+      }
+    }
+    return timelineMap.isEmpty() ? Optional.empty() : Optional.of(timelineMap);
   }
+
   /**
    * Load a single segment.
    *

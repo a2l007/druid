@@ -34,7 +34,9 @@ import org.apache.druid.timeline.LogicalSegment;
 import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BinaryOperator;
+import java.util.stream.Collectors;
 
 /**
  * The broker-side (also used by server in some cases) API for a specific Query type.
@@ -81,7 +83,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   /**
    * Perform any per-query decoration of an {@link ObjectMapper} that enables it to read and write objects of the
    * query's {@link ResultType}. It is used by QueryResource on the write side, and DirectDruidClient on the read side.
-   *
+   * <p>
    * For most queries, this is a no-op, but it can be useful for query types that support more than one result
    * serialization format. Queries that implement this method must not modify the provided ObjectMapper, but instead
    * must return a copy.
@@ -95,7 +97,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * This method wraps a QueryRunner.  The input QueryRunner, by contract, will provide a series of
    * ResultType objects in time order (ascending or descending).  This method should return a new QueryRunner that
    * potentially merges the stream of ordered ResultType objects.
-   *
+   * <p>
    * A default implementation constructs a {@link ResultMergeQueryRunner} which creates a
    * {@link org.apache.druid.common.guava.CombiningSequence} using the supplied {@link QueryRunner} with
    * {@link QueryToolChest#createResultComparator(Query)} and {@link QueryToolChest#createMergeFn(Query)}} supplied by this
@@ -116,7 +118,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * {@link QueryToolChest#mergeResults(QueryRunner)} and also used in
    * {@link org.apache.druid.java.util.common.guava.ParallelMergeCombiningSequence} by 'CachingClusteredClient' if it
    * does not return null.
-   *
+   * <p>
    * Returning null from this function means that a query does not support result merging, at
    * least via the mechanisms that utilize this function.
    */
@@ -273,11 +275,30 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   }
 
   /**
-   * Returns whether this toolchest is able to handle the provided subquery.
+   * This method is called to allow the query to prune segments that it does not believe need to actually
+   * be queried.  It can use whatever criteria it wants in order to do the pruning, it just needs to
+   * return the list of Segments it actually wants to see queried.
    *
+   * @param query    The query being processed
+   * @param segments The list of candidate segments to be queried
+   * @param <T>      A Generic parameter because Java is cool
+   *
+   * @return The list of segments to actually query
+   */
+  public <T extends LogicalSegment> List<T> filterSegmentsFromMultiDatasources(
+      QueryType query,
+      Map<String, List<T>> segments
+  )
+  {
+    return segments.values().stream().flatMap(List::stream).collect(Collectors.toList());
+  }
+
+  /**
+   * Returns whether this toolchest is able to handle the provided subquery.
+   * <p>
    * When this method returns true, the core query stack will pass subquery datasources over to the toolchest and will
    * assume they are properly handled.
-   *
+   * <p>
    * When this method returns false, the core query stack will throw an error if subqueries are present. In the future,
    * instead of throwing an error, the core query stack will handle the subqueries on its own.
    */
@@ -306,19 +327,19 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * {@link #resultArraySignature}. This functionality is useful because it allows higher-level processors to operate on
    * the results of any query in a consistent way. This is useful for the SQL layer and for any algorithm that might
    * operate on the results of an inner query.
-   *
+   * <p>
    * Not all query types support this method. They will throw {@link UnsupportedOperationException}, and they cannot
    * be used by the SQL layer or by generic higher-level algorithms.
-   *
+   * <p>
    * Some query types return less information after translating their results into arrays, especially in situations
    * where there is no clear way to translate fully rich results into flat arrays. For example, the scan query does not
    * include the segmentId in its array-based results, because it could potentially conflict with a 'segmentId' field
    * in the actual datasource being scanned.
-   *
+   * <p>
    * It is possible that there will be multiple arrays returned for a single result object. For example, in the topN
    * query, each {@link org.apache.druid.query.topn.TopNResultValue} will generate a separate array for each of its
    * {@code values}.
-   *
+   * <p>
    * By convention, the array form should include the __time column, if present,  as a long (milliseconds since epoch).
    *
    * @param resultSequence results of the form returned by {@link #mergeResults}

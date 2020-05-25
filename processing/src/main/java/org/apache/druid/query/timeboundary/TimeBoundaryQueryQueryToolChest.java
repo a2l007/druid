@@ -45,12 +45,15 @@ import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.timeline.LogicalSegment;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 
 /**
+ *
  */
 public class TimeBoundaryQueryQueryToolChest
     extends QueryToolChest<Result<TimeBoundaryResultValue>, TimeBoundaryQuery>
@@ -92,6 +95,27 @@ public class TimeBoundaryQueryQueryToolChest
                    .filter(input -> (min != null && input.getInterval().overlaps(min.getTrueInterval())) ||
                                     (max != null && input.getInterval().overlaps(max.getTrueInterval())))
                    .collect(Collectors.toList());
+  }
+
+  @Override
+  public <T extends LogicalSegment> List<T> filterSegmentsFromMultiDatasources(
+      TimeBoundaryQuery query,
+      Map<String, List<T>> segments
+  )
+  {
+    List<T> filteredList = new ArrayList<>();
+    for (Map.Entry<String, List<T>> mapEntry : segments.entrySet()) {
+      List<T> segmentList = mapEntry.getValue();
+      final T min = segmentList.get(0);
+      final T max = segmentList.get(segmentList.size() - 1);
+      filteredList.addAll(segmentList.stream()
+                                     .filter(input -> (min != null && input.getInterval()
+                                                                           .overlaps(min.getTrueInterval())) ||
+                                                      max != null && input.getInterval()
+                                                                          .overlaps(max.getTrueInterval()))
+                                     .collect(Collectors.toList()));
+    }
+    return filteredList;
   }
 
   @Override

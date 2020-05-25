@@ -44,6 +44,7 @@ import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryPlus;
 import org.apache.druid.query.QueryRunner;
 import org.apache.druid.query.QueryToolChestWarehouse;
+import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.planning.DataSourceAnalysis;
@@ -257,7 +258,7 @@ public class CachingClusteredClientFunctionalityTest
 
           @Override
           public Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimelineMap(
-              DataSourceAnalysis analysis
+              List<TableDataSource> analysis
           )
           {
             return Optional.empty();
