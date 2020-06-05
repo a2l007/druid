@@ -74,6 +74,7 @@ import org.apache.druid.query.QueryRunnerTestHelper;
 import org.apache.druid.query.QueryToolChest;
 import org.apache.druid.query.QueryToolChestWarehouse;
 import org.apache.druid.query.Result;
+import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
@@ -532,7 +533,13 @@ public class CachingClusteredClientBenchmark
     @Override
     public Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
     {
-      return Optional.ofNullable(timelines.get(analysis.getBaseTableDataSource().get().getName()));
+      return Optional.ofNullable(timelines.get(analysis.getBaseTableDataSource().get().get(0).getName()));
+    }
+
+    @Override
+    public Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimelineMap(List<TableDataSource> tableDataSources)
+    {
+      return Optional.empty();
     }
 
     @Override
