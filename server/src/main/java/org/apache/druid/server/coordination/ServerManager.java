@@ -36,7 +36,7 @@ import org.apache.druid.query.BySegmentQueryRunner;
 import org.apache.druid.query.CPUTimeMetricQueryRunner;
 import org.apache.druid.query.FinalizeResultsQueryRunner;
 import org.apache.druid.query.MetricsEmittingQueryRunner;
-import org.apache.druid.query.MultiDataSource;
+import org.apache.druid.query.MultiTableDataSource;
 import org.apache.druid.query.NoopQueryRunner;
 import org.apache.druid.query.PerSegmentOptimizingQueryRunner;
 import org.apache.druid.query.PerSegmentQueryOptimizationContext;
@@ -242,7 +242,7 @@ public class ServerManager implements QuerySegmentWalker
         query.getFilter() == null ? null : query.getFilter().toFilter(),
         query.getVirtualColumns()
     );
-    if (query.getDataSource() instanceof MultiDataSource) {
+    if (query.getDataSource() instanceof MultiTableDataSource) {
       specs = ImmutableSet.copyOf(specs);
     }
     FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable

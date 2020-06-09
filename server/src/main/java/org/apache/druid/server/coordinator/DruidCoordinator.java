@@ -326,7 +326,7 @@ public class DruidCoordinator
       for (DruidServer druidServer : serverInventoryView.getInventory()) {
         final DruidDataSource loadedView = druidServer.getDataSource(dataSource.getName());
         if (loadedView != null) {
-          // This does not use segments.removeAll(loadedView.getSegments()) for performance reasons.
+          // This does not use segments.removeAll(loadedView.retrieveSegmentsForIntervals()) for performance reasons.
           // Please see https://github.com/apache/druid/pull/5632 and LoadStatusBenchmark for more info.
           for (DataSegment serverSegment : loadedView.getSegments()) {
             segments.remove(serverSegment);

@@ -104,7 +104,7 @@ public class AppenderatorTest
                       .getNumRowsInSegment()
       );
 
-      // getSegments
+      // retrieveSegmentsForIntervals
       Assert.assertEquals(IDENTIFIERS.subList(0, 2), sorted(appenderator.getSegments()));
 
       // getRowCount

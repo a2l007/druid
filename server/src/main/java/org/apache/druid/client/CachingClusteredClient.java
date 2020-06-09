@@ -53,7 +53,7 @@ import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.BySegmentResultValueClass;
 import org.apache.druid.query.CacheStrategy;
 import org.apache.druid.query.DruidProcessingConfig;
-import org.apache.druid.query.MultiDataSource;
+import org.apache.druid.query.MultiTableDataSource;
 import org.apache.druid.query.Queries;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryContexts;
@@ -392,9 +392,9 @@ public class CachingClusteredClient implements QuerySegmentWalker
     {
       //TODO Remove this code
       final List<TimelineObjectHolder<String, ServerSelector>> serversLookup;
-      if (query.getDataSource() instanceof MultiDataSource) {
-        //MultiDataSource sds = (MultiDataSource) query.getDataSource();
-        Map<String, List<TimelineObjectHolder<String, ServerSelector>>> tmpServersLookup = ((MultiDataSource) query.getDataSource()).getSegments(
+      if (query.getDataSource() instanceof MultiTableDataSource) {
+        //MultiTableDataSource sds = (MultiTableDataSource) query.getDataSource();
+        Map<String, List<TimelineObjectHolder<String, ServerSelector>>> tmpServersLookup = ((MultiTableDataSource) query.getDataSource()).retrieveSegmentsForIntervals(
             intervals,
             timeline
         );

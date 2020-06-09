@@ -118,7 +118,7 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Benchmark)
 @Fork(value = 2)
 @Warmup(iterations = 10)
-@Measurement(iterations = 25)
+@Measurement(iterations = 2)
 public class GroupByBenchmark
 {
   @Param({"4"})

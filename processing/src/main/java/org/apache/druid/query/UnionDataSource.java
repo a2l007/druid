@@ -38,9 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class UnionDataSource<T extends Overshadowable<T>> implements MultiDataSource<T>
-//public class UnionDataSource implements DataSource
-
+public class UnionDataSource implements MultiTableDataSource
 {
   @JsonProperty
   private final List<TableDataSource> dataSources;
@@ -146,9 +144,9 @@ public class UnionDataSource<T extends Overshadowable<T>> implements MultiDataSo
   }
 
   @Override
-  public <T extends Overshadowable<T>> Map<String, List<TimelineObjectHolder<String, T>>> getSegments(
+  public <ObjectType extends Overshadowable<ObjectType>> Map<String, List<TimelineObjectHolder<String, ObjectType>>> retrieveSegmentsForIntervals(
       List<Interval> intervals,
-      Map<String, ? extends TimelineLookup<String, T>> timelineMap
+      Map<String, TimelineLookup<String, ObjectType>> timelineMap
   )
   {
     /*return intervals.stream()
@@ -160,14 +158,14 @@ public class UnionDataSource<T extends Overshadowable<T>> implements MultiDataSo
 
      */
     //TODO Error handling needed here
-    Map<String, List<TimelineObjectHolder<String, T>>> segmentsMap = new HashMap<>();
+    Map<String, List<TimelineObjectHolder<String, ObjectType>>> segmentsMap = new HashMap<>();
     for (String datasource : timelineMap.keySet()) {
       for (Interval itvl : intervals) {
         if (!segmentsMap.containsKey(datasource)) {
-          List<TimelineObjectHolder<String, T>> segList = new ArrayList<>();
+          List<TimelineObjectHolder<String, ObjectType>> segList = new ArrayList<>();
           segmentsMap.put(datasource, segList);
         }
-        List<TimelineObjectHolder<String, T>> segmentList = segmentsMap.get(datasource);
+        List<TimelineObjectHolder<String, ObjectType>> segmentList = segmentsMap.get(datasource);
         segmentList.addAll(timelineMap.get(datasource).lookup(itvl));
         segmentsMap.put(datasource, segmentList);
       }

@@ -27,12 +27,26 @@ import org.joda.time.Interval;
 import java.util.List;
 import java.util.Map;
 
-public interface MultiDataSource<T extends Overshadowable<T>> extends DataSource
+/**
+ * Represents a source of data that consists of multiple base tables. Implementations of this interface
+ * must handle more than one table datasource.
+ */
+public interface MultiTableDataSource extends DataSource
 {
-  <T extends Overshadowable<T>> Map<String, List<TimelineObjectHolder<String, T>>> getSegments(
+  /**
+   *
+   * @param intervals     The intervals for which segments are to be returned
+   * @param timelineMap   Table datasource names along with its corresponding timeline for a specific interval
+   * @param <ObjectType>  Type of the overshadowable object handled by the timeline
+   * @return              Table datasource name mapped to the list of segments which needs to be queried
+   */
+  <ObjectType extends Overshadowable<ObjectType>> Map<String, List<TimelineObjectHolder<String, ObjectType>>> retrieveSegmentsForIntervals(
       List<Interval> intervals,
-      Map<String, ? extends TimelineLookup<String, T>> timelineMap
+      Map<String, TimelineLookup<String, ObjectType>> timelineMap
   );
 
+  /**
+   * Returns the base table datasources from which the data for a query is retrieved.
+   */
   List<TableDataSource> getDataSources();
 }
