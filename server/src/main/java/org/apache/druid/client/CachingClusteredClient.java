@@ -52,6 +52,7 @@ import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.BySegmentResultValueClass;
 import org.apache.druid.query.CacheStrategy;
 import org.apache.druid.query.DruidProcessingConfig;
+import org.apache.druid.query.MultiTableDataSource;
 import org.apache.druid.query.Queries;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryContexts;
@@ -78,6 +79,7 @@ import org.apache.druid.timeline.TimelineObjectHolder;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 import org.apache.druid.timeline.partition.PartitionChunk;
 import org.apache.druid.timeline.partition.PartitionHolder;
+import org.apache.druid.utils.CollectionUtils;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
@@ -285,14 +287,17 @@ public class CachingClusteredClient implements QuerySegmentWalker
 
     Sequence<T> run(final UnaryOperator<TimelineLookup<String, ServerSelector>> timelineConverter)
     {
-      final Optional<? extends TimelineLookup<String, ServerSelector>> maybeTimeline = serverView.getTimeline(
+      Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> maybeTimeline = serverView.getTimeline(
           dataSourceAnalysis
       );
       if (!maybeTimeline.isPresent()) {
         return Sequences.empty();
       }
 
-      final TimelineLookup<String, ServerSelector> timeline = timelineConverter.apply(maybeTimeline.get());
+      final Map<String, TimelineLookup<String, ServerSelector>> timeline = CollectionUtils.mapValues(
+          maybeTimeline.get(),
+          timelineConverter::apply
+      );
       if (uncoveredIntervalsLimit > 0) {
         computeUncoveredIntervals(timeline);
       }
@@ -363,13 +368,31 @@ public class CachingClusteredClient implements QuerySegmentWalker
       }
     }
 
-    private Set<SegmentServerSelector> computeSegmentsToQuery(TimelineLookup<String, ServerSelector> timeline)
+    private Set<SegmentServerSelector> computeSegmentsToQuery(Map<String, TimelineLookup<String, ServerSelector>> timeline)
     {
-      final List<TimelineObjectHolder<String, ServerSelector>> serversLookup = toolChest.filterSegments(
-          query,
-          intervals.stream().flatMap(i -> timeline.lookup(i).stream()).collect(Collectors.toList())
-      );
+      final List<TimelineObjectHolder<String, ServerSelector>> serversLookup;
+      if (query.getDataSource() instanceof MultiTableDataSource) {
+        Map<String, List<TimelineObjectHolder<String, ServerSelector>>> multiDataSourceServerLookup = ((MultiTableDataSource) query
+            .getDataSource()).retrieveSegmentsForIntervals(
+            intervals,
+            timeline
+        );
 
+        serversLookup = multiDataSourceServerLookup.values()
+                                                   .stream()
+                                                   .flatMap(segmentsPerDataSource -> toolChest.filterSegments(
+                                                       query,
+                                                       segmentsPerDataSource
+                                                   ).stream())
+                                                   .collect(Collectors.toList());
+      } else {
+        serversLookup = toolChest.filterSegments(
+            query,
+            intervals.stream()
+                     .flatMap(i -> Iterables.getOnlyElement(timeline.entrySet()).getValue().lookup(i).stream())
+                     .collect(Collectors.toList())
+        );
+      }
       final Set<SegmentServerSelector> segments = new LinkedHashSet<>();
       final Map<String, Optional<RangeSet<String>>> dimensionRangeCache = new HashMap<>();
       // Filter unneeded chunks based on partition dimension
@@ -393,33 +416,35 @@ public class CachingClusteredClient implements QuerySegmentWalker
       return segments;
     }
 
-    private void computeUncoveredIntervals(TimelineLookup<String, ServerSelector> timeline)
+    private void computeUncoveredIntervals(Map<String, TimelineLookup<String, ServerSelector>> timeline)
     {
       final List<Interval> uncoveredIntervals = new ArrayList<>(uncoveredIntervalsLimit);
       boolean uncoveredIntervalsOverflowed = false;
 
       for (Interval interval : intervals) {
-        Iterable<TimelineObjectHolder<String, ServerSelector>> lookup = timeline.lookup(interval);
-        long startMillis = interval.getStartMillis();
-        long endMillis = interval.getEndMillis();
-        for (TimelineObjectHolder<String, ServerSelector> holder : lookup) {
-          Interval holderInterval = holder.getInterval();
-          long intervalStart = holderInterval.getStartMillis();
-          if (!uncoveredIntervalsOverflowed && startMillis != intervalStart) {
+        for (String dataSource : timeline.keySet()) {
+          Iterable<TimelineObjectHolder<String, ServerSelector>> lookup = timeline.get(dataSource).lookup(interval);
+          long startMillis = interval.getStartMillis();
+          long endMillis = interval.getEndMillis();
+          for (TimelineObjectHolder<String, ServerSelector> holder : lookup) {
+            Interval holderInterval = holder.getInterval();
+            long intervalStart = holderInterval.getStartMillis();
+            if (!uncoveredIntervalsOverflowed && startMillis != intervalStart) {
+              if (uncoveredIntervalsLimit > uncoveredIntervals.size()) {
+                uncoveredIntervals.add(Intervals.utc(startMillis, intervalStart));
+              } else {
+                uncoveredIntervalsOverflowed = true;
+              }
+            }
+            startMillis = holderInterval.getEndMillis();
+          }
+
+          if (!uncoveredIntervalsOverflowed && startMillis < endMillis) {
             if (uncoveredIntervalsLimit > uncoveredIntervals.size()) {
-              uncoveredIntervals.add(Intervals.utc(startMillis, intervalStart));
+              uncoveredIntervals.add(Intervals.utc(startMillis, endMillis));
             } else {
               uncoveredIntervalsOverflowed = true;
             }
-          }
-          startMillis = holderInterval.getEndMillis();
-        }
-
-        if (!uncoveredIntervalsOverflowed && startMillis < endMillis) {
-          if (uncoveredIntervalsLimit > uncoveredIntervals.size()) {
-            uncoveredIntervals.add(Intervals.utc(startMillis, endMillis));
-          } else {
-            uncoveredIntervalsOverflowed = true;
           }
         }
       }

@@ -24,6 +24,7 @@ import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.DataSource;
 import org.apache.druid.query.JoinDataSource;
+import org.apache.druid.query.MultiTableDataSource;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryDataSource;
 import org.apache.druid.query.TableDataSource;
@@ -176,10 +177,12 @@ public class DataSourceAnalysis
    * Returns the same datasource as {@link #getBaseDataSource()}, but only if it is a table. Useful on data servers,
    * since they generally can only handle queries where the base datasource is a table.
    */
-  public Optional<TableDataSource> getBaseTableDataSource()
+  public Optional<List<TableDataSource>> getBaseTableDataSource()
   {
     if (baseDataSource instanceof TableDataSource) {
-      return Optional.of((TableDataSource) baseDataSource);
+      return Optional.of(Collections.singletonList((TableDataSource) baseDataSource));
+    } else if (baseDataSource instanceof MultiTableDataSource) {
+      return Optional.of(((MultiTableDataSource) baseDataSource).getDataSources());
     } else {
       return Optional.empty();
     }

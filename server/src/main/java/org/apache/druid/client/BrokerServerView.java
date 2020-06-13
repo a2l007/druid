@@ -302,14 +302,23 @@ public class BrokerServerView implements TimelineServerView
   }
 
   @Override
-  public Optional<VersionedIntervalTimeline<String, ServerSelector>> getTimeline(final DataSourceAnalysis analysis)
+  public Optional<Map<String, VersionedIntervalTimeline<String, ServerSelector>>> getTimeline(final DataSourceAnalysis analysis)
   {
-    final TableDataSource tableDataSource =
+    final List<TableDataSource> tableDataSources =
         analysis.getBaseTableDataSource()
                 .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
 
     synchronized (lock) {
-      return Optional.ofNullable(timelines.get(tableDataSource.getName()));
+      Map<String, VersionedIntervalTimeline<String, ServerSelector>> timelineMap = tableDataSources
+          .stream()
+          .map(TableDataSource::getName)
+          .filter(timelines::containsKey)
+          .collect(Collectors.toMap(
+              tableName -> tableName,
+              timelines::get
+          ));
+
+      return timelineMap.isEmpty() ? Optional.empty() : Optional.of(timelineMap);
     }
   }
 

@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
@@ -78,7 +79,7 @@ public class TestServerInventoryView implements TimelineServerView
   }
 
   @Override
-  public Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
+  public Optional<Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimeline(DataSourceAnalysis analysis)
   {
     throw new UnsupportedOperationException();
   }

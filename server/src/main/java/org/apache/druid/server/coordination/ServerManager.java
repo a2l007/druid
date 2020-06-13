@@ -20,6 +20,7 @@
 package org.apache.druid.server.coordination;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import org.apache.druid.client.CachingQueryRunner;
 import org.apache.druid.client.cache.Cache;
@@ -35,6 +36,7 @@ import org.apache.druid.query.BySegmentQueryRunner;
 import org.apache.druid.query.CPUTimeMetricQueryRunner;
 import org.apache.druid.query.FinalizeResultsQueryRunner;
 import org.apache.druid.query.MetricsEmittingQueryRunner;
+import org.apache.druid.query.MultiTableDataSource;
 import org.apache.druid.query.NoopQueryRunner;
 import org.apache.druid.query.PerSegmentOptimizingQueryRunner;
 import org.apache.druid.query.PerSegmentQueryOptimizationContext;
@@ -66,7 +68,9 @@ import org.apache.druid.timeline.partition.PartitionChunk;
 import org.apache.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
@@ -123,12 +127,12 @@ public class ServerManager implements QuerySegmentWalker
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
     final DataSourceAnalysis analysis = DataSourceAnalysis.forDataSource(query.getDataSource());
-    final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline;
-    final Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> maybeTimeline =
+    final List<VersionedIntervalTimeline<String, ReferenceCountingSegment>> timelines;
+    final Optional<List<VersionedIntervalTimeline<String, ReferenceCountingSegment>>> maybeTimelines =
         segmentManager.getTimeline(analysis);
 
-    if (maybeTimeline.isPresent()) {
-      timeline = maybeTimeline.get();
+    if (maybeTimelines.isPresent()) {
+      timelines = maybeTimelines.get();
     } else {
       // Note: this is not correct when there's a right or full outer join going on.
       // See https://github.com/apache/druid/issues/9229 for details.
@@ -136,8 +140,8 @@ public class ServerManager implements QuerySegmentWalker
     }
 
     FunctionalIterable<SegmentDescriptor> segmentDescriptors = FunctionalIterable
-        .create(intervals)
-        .transformCat(timeline::lookup)
+        .create(timelines)
+        .transformCat(tLine -> FunctionalIterable.create(intervals).transformCat(itvl -> tLine.lookup(itvl)))
         .transformCat(
             holder -> {
               if (holder == null) {
@@ -175,8 +179,9 @@ public class ServerManager implements QuerySegmentWalker
     final DataSourceAnalysis analysis = DataSourceAnalysis.forDataSource(query.getDataSource());
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
-    final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline;
-    final Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> maybeTimeline =
+    final List<VersionedIntervalTimeline<String, ReferenceCountingSegment>> timelines;
+
+    final Optional<List<VersionedIntervalTimeline<String, ReferenceCountingSegment>>> maybeTimelines =
         segmentManager.getTimeline(analysis);
 
     // Make sure this query type can handle the subquery, if present.
@@ -184,8 +189,8 @@ public class ServerManager implements QuerySegmentWalker
       throw new ISE("Cannot handle subquery: %s", analysis.getDataSource());
     }
 
-    if (maybeTimeline.isPresent()) {
-      timeline = maybeTimeline.get();
+    if (maybeTimelines.isPresent()) {
+      timelines = maybeTimelines.get();
     } else {
       // Note: this is not correct when there's a right or full outer join going on.
       // See https://github.com/apache/druid/issues/9229 for details.
@@ -205,34 +210,46 @@ public class ServerManager implements QuerySegmentWalker
         query.getVirtualColumns()
     );
 
+    // This is to handle cases where multiple datasources may have the same SegmentDescriptor for an interval.
+    // In such a case, there will be duplicate segment descriptor entries within the iterable which may result
+    // in data being fetched from a datasource multiple times.
+    if (query.getDataSource() instanceof MultiTableDataSource) {
+      specs = ImmutableSet.copyOf(specs);
+    }
+
     FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
         .create(specs)
         .transformCat(
             descriptor -> {
-              final PartitionHolder<ReferenceCountingSegment> entry = timeline.findEntry(
-                  descriptor.getInterval(),
-                  descriptor.getVersion()
-              );
+              List<QueryRunner<T>> queryRunnerList = new ArrayList<>();
+              for (VersionedIntervalTimeline<String, ReferenceCountingSegment> timelineEntry : timelines) {
 
-              if (entry == null) {
+                final PartitionHolder<ReferenceCountingSegment> entry = timelineEntry.findEntry(
+                    descriptor.getInterval(),
+                    descriptor.getVersion()
+                );
+                if (entry != null) {
+                  PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(descriptor.getPartitionNumber());
+                  if (chunk == null) {
+                    queryRunnerList.add(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
+                  } else {
+                    final ReferenceCountingSegment segment = chunk.getObject();
+                    queryRunnerList.add(buildAndDecorateQueryRunner(
+                        factory,
+                        toolChest,
+                        segmentMapFn.apply(segment),
+                        descriptor,
+                        cpuTimeAccumulator
+                    ));
+                  }
+                }
+              }
+
+              if (queryRunnerList.isEmpty()) {
                 return Collections.singletonList(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
               }
 
-              final PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(descriptor.getPartitionNumber());
-              if (chunk == null) {
-                return Collections.singletonList(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
-              }
-
-              final ReferenceCountingSegment segment = chunk.getObject();
-              return Collections.singletonList(
-                  buildAndDecorateQueryRunner(
-                      factory,
-                      toolChest,
-                      segmentMapFn.apply(segment),
-                      descriptor,
-                      cpuTimeAccumulator
-                  )
-              );
+              return queryRunnerList;
             }
         );
 

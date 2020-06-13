@@ -34,6 +34,7 @@ import org.joda.time.Interval;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -58,21 +59,25 @@ public class ServerViewUtil
   )
   {
     final DataSourceAnalysis analysis = DataSourceAnalysis.forDataSource(datasource);
-    final Optional<? extends TimelineLookup<String, ServerSelector>> maybeTimeline = serverView.getTimeline(analysis);
+    final Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> maybeTimeline = serverView.getTimeline(
+        analysis);
     if (!maybeTimeline.isPresent()) {
       return Collections.emptyList();
     }
     List<LocatedSegmentDescriptor> located = new ArrayList<>();
     for (Interval interval : intervals) {
-      for (TimelineObjectHolder<String, ServerSelector> holder : maybeTimeline.get().lookup(interval)) {
-        for (PartitionChunk<ServerSelector> chunk : holder.getObject()) {
-          ServerSelector selector = chunk.getObject();
-          final SegmentDescriptor descriptor = new SegmentDescriptor(
-              holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
-          );
-          long size = selector.getSegment().getSize();
-          List<DruidServerMetadata> candidates = selector.getCandidates(numCandidates);
-          located.add(new LocatedSegmentDescriptor(descriptor, size, candidates));
+      for (Map.Entry<String, ? extends TimelineLookup<String, ServerSelector>> timeline : maybeTimeline.get()
+                                                                                                       .entrySet()) {
+        for (TimelineObjectHolder<String, ServerSelector> holder : timeline.getValue().lookup(interval)) {
+          for (PartitionChunk<ServerSelector> chunk : holder.getObject()) {
+            ServerSelector selector = chunk.getObject();
+            final SegmentDescriptor descriptor = new SegmentDescriptor(
+                holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
+            );
+            long size = selector.getSegment().getSize();
+            List<DruidServerMetadata> candidates = selector.getCandidates(numCandidates);
+            located.add(new LocatedSegmentDescriptor(descriptor, size, candidates));
+          }
         }
       }
     }

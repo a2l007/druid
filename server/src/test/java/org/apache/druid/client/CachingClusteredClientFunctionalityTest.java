@@ -66,6 +66,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -249,9 +250,9 @@ public class CachingClusteredClientFunctionalityTest
           }
 
           @Override
-          public Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
+          public Optional<Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimeline(DataSourceAnalysis analysis)
           {
-            return Optional.of(timeline);
+            return Optional.of(ImmutableMap.of("test", timeline));
           }
 
           @Nullable

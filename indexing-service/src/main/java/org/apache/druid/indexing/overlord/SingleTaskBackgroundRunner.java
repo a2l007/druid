@@ -22,6 +22,7 @@ package org.apache.druid.indexing.overlord;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -334,7 +335,7 @@ public class SingleTaskBackgroundRunner implements TaskRunner, QuerySegmentWalke
       final Task task = runningItem.getTask();
 
       if (analysis.getBaseTableDataSource().isPresent()
-          && task.getDataSource().equals(analysis.getBaseTableDataSource().get().getName())) {
+          && task.getDataSource().equals(Iterables.getOnlyElement(analysis.getBaseTableDataSource().get()).getName())) {
         final QueryRunner<T> taskQueryRunner = task.getQueryRunner(query);
 
         if (taskQueryRunner != null) {
