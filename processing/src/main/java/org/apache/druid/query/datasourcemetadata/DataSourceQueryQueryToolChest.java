@@ -71,6 +71,7 @@ public class DataSourceQueryQueryToolChest
                    .collect(Collectors.toList());
   }
 
+
   @Override
   public QueryRunner<Result<DataSourceMetadataResultValue>> mergeResults(
       final QueryRunner<Result<DataSourceMetadataResultValue>> runner

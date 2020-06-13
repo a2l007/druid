@@ -149,30 +149,15 @@ public class UnionDataSource implements MultiTableDataSource
       Map<String, TimelineLookup<String, ObjectType>> timelineMap
   )
   {
-    /*return intervals.stream()
-                    .flatMap(itvl -> getDataSources().stream()
-                                                     .map(TableDataSource::getName)
-                                                     .filter(timelineMap::containsKey)
-                                                     .flatMap(ds -> timelineMap.get(ds).lookup(itvl).stream()))
-                    .collect(Collectors.toList());
-
-     */
-    //TODO Error handling needed here
     Map<String, List<TimelineObjectHolder<String, ObjectType>>> segmentsMap = new HashMap<>();
     for (String datasource : timelineMap.keySet()) {
       for (Interval itvl : intervals) {
-        if (!segmentsMap.containsKey(datasource)) {
-          List<TimelineObjectHolder<String, ObjectType>> segList = new ArrayList<>();
-          segmentsMap.put(datasource, segList);
-        }
-        List<TimelineObjectHolder<String, ObjectType>> segmentList = segmentsMap.get(datasource);
-        segmentList.addAll(timelineMap.get(datasource).lookup(itvl));
-        segmentsMap.put(datasource, segmentList);
+        segmentsMap.putIfAbsent(datasource, new ArrayList<>());
+        List<TimelineObjectHolder<String, ObjectType>> segmentListForDataSource = segmentsMap.get(datasource);
+        segmentListForDataSource.addAll(timelineMap.get(datasource).lookup(itvl));
+        segmentsMap.put(datasource, segmentListForDataSource);
       }
     }
-
-    //}
-    //intervals.stream().flatMap(i -> timelineMap.get(query.getDataSource().toString()).lookup(i).stream()).collect(Collectors.toList()
     return segmentsMap;
 
   }

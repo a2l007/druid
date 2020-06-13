@@ -116,7 +116,7 @@ public class BrokerServerViewTest extends CuratorTestBase
 
     TimelineLookup timeline = brokerServerView.getTimeline(
         DataSourceAnalysis.forDataSource(new TableDataSource("test_broker_server_view"))
-    ).get();
+    ).get().get("test_broker_server_view");
     List<TimelineObjectHolder> serverLookupRes = (List<TimelineObjectHolder>) timeline.lookup(
         Intervals.of(
             "2014-10-20T00:00:00Z/P1D"
@@ -193,7 +193,7 @@ public class BrokerServerViewTest extends CuratorTestBase
 
     TimelineLookup timeline = brokerServerView.getTimeline(
         DataSourceAnalysis.forDataSource(new TableDataSource("test_broker_server_view"))
-    ).get();
+    ).get().get("test_broker_server_view");
     assertValues(
         Arrays.asList(
             createExpected("2011-04-01/2011-04-02", "v3", druidServers.get(4), segments.get(4)),
@@ -216,7 +216,7 @@ public class BrokerServerViewTest extends CuratorTestBase
 
     timeline = brokerServerView.getTimeline(
         DataSourceAnalysis.forDataSource(new TableDataSource("test_broker_server_view"))
-    ).get();
+    ).get().get("test_broker_server_view");
     assertValues(
         Arrays.asList(
             createExpected("2011-04-01/2011-04-02", "v3", druidServers.get(4), segments.get(4)),
@@ -306,7 +306,7 @@ public class BrokerServerViewTest extends CuratorTestBase
 
     TimelineLookup timeline = brokerServerView.getTimeline(
         DataSourceAnalysis.forDataSource(new TableDataSource("test_broker_server_view"))
-    ).get();
+    ).get().get("test_broker_server_view");
 
     assertValues(
         Arrays.asList(
@@ -330,7 +330,7 @@ public class BrokerServerViewTest extends CuratorTestBase
 
     timeline = brokerServerView.getTimeline(
         DataSourceAnalysis.forDataSource(new TableDataSource("test_broker_server_view"))
-    ).get();
+    ).get().get("test_broker_server_view");
 
     // expect same set of segments as before
     assertValues(

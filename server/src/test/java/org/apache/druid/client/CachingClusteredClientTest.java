@@ -77,7 +77,6 @@ import org.apache.druid.query.QueryRunner;
 import org.apache.druid.query.QueryToolChestWarehouse;
 import org.apache.druid.query.Result;
 import org.apache.druid.query.SegmentDescriptor;
-import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
@@ -124,7 +123,6 @@ import org.apache.druid.server.scheduling.ManualQueryPrioritizationStrategy;
 import org.apache.druid.server.scheduling.NoQueryLaningStrategy;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentId;
-import org.apache.druid.timeline.TimelineLookup;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 import org.apache.druid.timeline.partition.NoneShardSpec;
 import org.apache.druid.timeline.partition.ShardSpec;
@@ -281,7 +279,7 @@ public class CachingClusteredClientTest
           @Override
           public Object[] apply(Integer input)
           {
-            return new Object[]{input};
+            return new Object[] {input};
           }
         }
     );
@@ -301,7 +299,7 @@ public class CachingClusteredClientTest
     cache = MapCache.create(100000);
     client = makeClient(new ForegroundCachePopulator(JSON_MAPPER, new CachePopulatorStats(), -1));
 
-    servers = new DruidServer[]{
+    servers = new DruidServer[] {
         new DruidServer("test1", "test1", null, 10, ServerType.HISTORICAL, "bye", 0),
         new DruidServer("test2", "test2", null, 10, ServerType.HISTORICAL, "bye", 0),
         new DruidServer("test3", "test3", null, 10, ServerType.HISTORICAL, "bye", 0),
@@ -2398,17 +2396,9 @@ public class CachingClusteredClientTest
           }
 
           @Override
-          public Optional<VersionedIntervalTimeline<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
+          public Optional<Map<String, VersionedIntervalTimeline<String, ServerSelector>>> getTimeline(DataSourceAnalysis analysis)
           {
-            return Optional.of(timeline);
-          }
-
-          @Override
-          public Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimelineMap(
-              List<TableDataSource> analysis
-          )
-          {
-            return Optional.empty();
+            return Optional.of(ImmutableMap.of(DATA_SOURCE, timeline));
           }
 
           @Override

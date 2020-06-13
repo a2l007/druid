@@ -28,17 +28,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Represents a source of data that consists of multiple base tables. Implementations of this interface
- * must handle more than one table datasource.
+ * Represents a source of data for a query obtained from multiple base tables. Implementations of this interface
+ * must handle more than one table dataSource.
  */
 public interface MultiTableDataSource extends DataSource
 {
   /**
-   *
-   * @param intervals     The intervals for which segments are to be returned
-   * @param timelineMap   Table datasource names along with its corresponding timeline for a specific interval
+   * @param intervals     The intervals to find the timeline objects for
+   * @param timelineMap   Table dataSource names along with its corresponding timeline for a specific interval
    * @param <ObjectType>  Type of the overshadowable object handled by the timeline
-   * @return              Table datasource name mapped to the list of segments which needs to be queried
+   * @return              Map of table datasources mapped to their corresponding list of timeline objects which needs to be queried
    */
   <ObjectType extends Overshadowable<ObjectType>> Map<String, List<TimelineObjectHolder<String, ObjectType>>> retrieveSegmentsForIntervals(
       List<Interval> intervals,
@@ -46,7 +45,7 @@ public interface MultiTableDataSource extends DataSource
   );
 
   /**
-   * Returns the base table datasources from which the data for a query is retrieved.
+   * Returns the base table dataSources from which the data for a query is retrieved.
    */
   List<TableDataSource> getDataSources();
 }

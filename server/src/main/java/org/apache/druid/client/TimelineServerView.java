@@ -21,7 +21,6 @@ package org.apache.druid.client;
 
 import org.apache.druid.client.selector.ServerSelector;
 import org.apache.druid.query.QueryRunner;
-import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.server.coordination.DruidServerMetadata;
 import org.apache.druid.timeline.DataSegment;
@@ -42,14 +41,11 @@ public interface TimelineServerView extends ServerView
    *
    * @param analysis data source analysis information
    *
-   * @return timeline, if it exists
+   * @return dataSource name mapped to its timeline, if it exists
    *
    * @throws IllegalStateException if 'analysis' does not represent a scan-based datasource of a single table
    */
-  Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis);
-
-  Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimelineMap(List<TableDataSource> tableDataSources);
-
+  Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimeline(DataSourceAnalysis analysis);
 
   /**
    * Returns a list of {@link ImmutableDruidServer}

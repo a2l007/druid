@@ -34,9 +34,7 @@ import org.apache.druid.timeline.LogicalSegment;
 import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BinaryOperator;
-import java.util.stream.Collectors;
 
 /**
  * The broker-side (also used by server in some cases) API for a specific Query type.
@@ -271,25 +269,6 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   public <T extends LogicalSegment> List<T> filterSegments(QueryType query, List<T> segments)
   {
     return segments;
-  }
-
-  /**
-   * This method is called to allow the query to prune segments that it does not believe need to actually
-   * be queried.  It can use whatever criteria it wants in order to do the pruning, it just needs to
-   * return the list of Segments it actually wants to see queried.
-   *
-   * @param query    The query being processed
-   * @param segments The list of candidate segments to be queried
-   * @param <T>      A Generic parameter because Java is cool
-   *
-   * @return The list of segments to actually query
-   */
-  public <T extends LogicalSegment> List<T> filterSegmentsFromMultiDatasources(
-      QueryType query,
-      Map<String, List<T>> segments
-  )
-  {
-    return segments.values().stream().flatMap(List::stream).collect(Collectors.toList());
   }
 
   /**
