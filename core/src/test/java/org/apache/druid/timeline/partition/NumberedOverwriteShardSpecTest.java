@@ -37,7 +37,7 @@ public class NumberedOverwriteShardSpecTest
   @Test
   public void testSerde() throws JsonProcessingException
   {
-    final ObjectMapper mapper = new ObjectMapper();
+    final ObjectMapper mapper = ShardSpecTestUtils.initObjectMapper();
     mapper.registerSubtypes(new NamedType(NumberedOverwriteShardSpec.class, NumberedOverwriteShardSpec.TYPE));
     final NumberedOverwriteShardSpec original = new NumberedOverwriteShardSpec(
         PartitionIds.NON_ROOT_GEN_START_PARTITION_ID + 2,
@@ -49,5 +49,21 @@ public class NumberedOverwriteShardSpecTest
     final String json = mapper.writeValueAsString(original);
     final NumberedOverwriteShardSpec fromJson = (NumberedOverwriteShardSpec) mapper.readValue(json, ShardSpec.class);
     Assert.assertEquals(original, fromJson);
+  }
+
+  @Test
+  public void testSharePartitionSpace()
+  {
+    final NumberedOverwriteShardSpec shardSpec = new NumberedOverwriteShardSpec(
+        PartitionIds.NON_ROOT_GEN_START_PARTITION_ID,
+        0,
+        3,
+        (short) 1,
+        (short) 1
+    );
+    Assert.assertFalse(shardSpec.sharePartitionSpace(NumberedPartialShardSpec.instance()));
+    Assert.assertFalse(shardSpec.sharePartitionSpace(new HashBasedNumberedPartialShardSpec(null, 0, 1)));
+    Assert.assertFalse(shardSpec.sharePartitionSpace(new SingleDimensionPartialShardSpec("dim", 0, null, null, 1)));
+    Assert.assertTrue(shardSpec.sharePartitionSpace(new NumberedOverwritePartialShardSpec(0, 2, 1)));
   }
 }

@@ -41,6 +41,7 @@ import org.apache.druid.utils.CollectionUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -121,6 +122,11 @@ public class SegmentManager
   public Map<String, Long> getDataSourceSizes()
   {
     return CollectionUtils.mapValues(dataSources, SegmentManager.DataSourceState::getTotalSegmentSize);
+  }
+
+  public Set<String> getDataSourceNames()
+  {
+    return dataSources.keySet();
   }
 
   /**

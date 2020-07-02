@@ -188,7 +188,7 @@ public class NumberedOverwriteShardSpec implements OverwriteShardSpec
   }
 
   @Override
-  public ShardSpecLookup getLookup(List<ShardSpec> shardSpecs)
+  public ShardSpecLookup getLookup(List<? extends ShardSpec> shardSpecs)
   {
     return (long timestamp, InputRow row) -> shardSpecs.get(0);
   }
@@ -203,12 +203,6 @@ public class NumberedOverwriteShardSpec implements OverwriteShardSpec
   public boolean possibleInDomain(Map<String, RangeSet<String>> domain)
   {
     return true;
-  }
-
-  @Override
-  public boolean isCompatible(Class<? extends ShardSpec> other)
-  {
-    return other == NumberedOverwriteShardSpec.class || other == NumberedShardSpec.class;
   }
 
   @Override
