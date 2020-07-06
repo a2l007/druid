@@ -105,7 +105,7 @@ import java.util.stream.Collectors;
 
 /**
  * This is the class on the Broker that is responsible for making native Druid queries to a cluster of data servers.
- *
+ * <p>
  * The main user of this class is {@link org.apache.druid.server.ClientQuerySegmentWalker}. In tests, its behavior
  * is partially mimicked by TestClusterQuerySegmentWalker.
  */
@@ -177,7 +177,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
       @Override
       public Sequence<T> run(final QueryPlus<T> queryPlus, final ResponseContext responseContext)
       {
-        return CachingClusteredClient.this.run(queryPlus, responseContext, timeline -> timeline);
+        return CachingClusteredClient.this.run(queryPlus, responseContext, timeline -> timeline, false);
       }
     };
   }
@@ -189,10 +189,12 @@ public class CachingClusteredClient implements QuerySegmentWalker
   private <T> Sequence<T> run(
       final QueryPlus<T> queryPlus,
       final ResponseContext responseContext,
-      final UnaryOperator<TimelineLookup<String, ServerSelector>> timelineConverter
+      final UnaryOperator<TimelineLookup<String, ServerSelector>> timelineConverter,
+      final boolean specificSegments
   )
   {
-    final ClusterQueryResult<T> result = new SpecificQueryRunnable<>(queryPlus, responseContext).run(timelineConverter);
+    final ClusterQueryResult<T> result = new SpecificQueryRunnable<>(queryPlus, responseContext)
+        .run(timelineConverter, specificSegments);
     initializeNumRemainingResponsesInResponseContext(queryPlus.getQuery(), responseContext, result.numQueryServers);
     return result.sequence;
   }
@@ -233,7 +235,8 @@ public class CachingClusteredClient implements QuerySegmentWalker
                 }
               }
               return timeline2;
-            }
+            },
+            true
         );
       }
     };
@@ -315,15 +318,18 @@ public class CachingClusteredClient implements QuerySegmentWalker
 
     /**
      * Builds a query distribution and merge plan.
-     *
+     * <p>
      * This method returns an empty sequence if the query datasource is unknown or there is matching result-level cache.
      * Otherwise, it creates a sequence merging sequences from the regular broker cache and remote servers. If parallel
      * merge is enabled, it can merge and *combine* the underlying sequences in parallel.
      *
      * @return a pair of a sequence merging results from remote query servers and the number of remote servers
-     *         participating in query processing.
+     * participating in query processing.
      */
-    ClusterQueryResult<T> run(final UnaryOperator<TimelineLookup<String, ServerSelector>> timelineConverter)
+    ClusterQueryResult<T> run(
+        final UnaryOperator<TimelineLookup<String, ServerSelector>> timelineConverter,
+        final boolean specificSegments
+    )
     {
       Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> maybeTimeline = serverView.getTimeline(
           dataSourceAnalysis
@@ -340,7 +346,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
         computeUncoveredIntervals(timeline);
       }
 
-      final Set<SegmentServerSelector> segmentServers = computeSegmentsToQuery(timeline);
+      final Set<SegmentServerSelector> segmentServers = computeSegmentsToQuery(timeline, specificSegments);
       @Nullable
       final byte[] queryCacheKey = computeQueryCacheKey();
       if (query.getContext().get(QueryResource.HEADER_IF_NONE_MATCH) != null) {
@@ -406,8 +412,15 @@ public class CachingClusteredClient implements QuerySegmentWalker
       }
     }
 
-    private Set<SegmentServerSelector> computeSegmentsToQuery(Map<String, TimelineLookup<String, ServerSelector>> timeline)
+    private Set<SegmentServerSelector> computeSegmentsToQuery(
+        Map<String, TimelineLookup<String, ServerSelector>> timeline,
+        boolean specificSegments
+    )
     {
+      final java.util.function.Function<Interval, List<TimelineObjectHolder<String, ServerSelector>>> lookupFn
+          = specificSegments
+            ? Iterables.getOnlyElement(timeline.entrySet()).getValue()::lookupWithIncompletePartitions
+            : Iterables.getOnlyElement(timeline.entrySet()).getValue()::lookup;
       final List<TimelineObjectHolder<String, ServerSelector>> serversLookup;
       if (query.getDataSource() instanceof MultiTableDataSource) {
         Map<String, List<TimelineObjectHolder<String, ServerSelector>>> multiDataSourceServerLookup = ((MultiTableDataSource) query
@@ -427,7 +440,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
         serversLookup = toolChest.filterSegments(
             query,
             intervals.stream()
-                     .flatMap(i -> Iterables.getOnlyElement(timeline.entrySet()).getValue().lookup(i).stream())
+                     .flatMap(i -> lookupFn.apply(i).stream())
                      .collect(Collectors.toList())
         );
       }
