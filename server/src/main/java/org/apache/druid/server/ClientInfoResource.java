@@ -155,10 +155,10 @@ public class ClientInfoResource
       theInterval = Intervals.of(interval);
     }
 
-    final Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> maybeTimeline =
+    final Optional<? extends TimelineLookup<String, ServerSelector>> maybeTimeline =
         timelineServerView.getTimeline(DataSourceAnalysis.forDataSource(new TableDataSource(dataSourceName)));
     final Optional<Iterable<TimelineObjectHolder<String, ServerSelector>>> maybeServersLookup =
-        maybeTimeline.map(timeline -> timeline.get(dataSourceName).lookup(theInterval));
+        maybeTimeline.map(timeline -> timeline.lookup(theInterval));
     if (!maybeServersLookup.isPresent() || Iterables.isEmpty(maybeServersLookup.get())) {
       return Collections.emptyMap();
     }

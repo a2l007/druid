@@ -2418,9 +2418,9 @@ public class CachingClusteredClientTest
           }
 
           @Override
-          public Optional<Map<String, VersionedIntervalTimeline<String, ServerSelector>>> getTimeline(DataSourceAnalysis analysis)
+          public Optional<VersionedIntervalTimeline<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
           {
-            return Optional.of(ImmutableMap.of(DATA_SOURCE, timeline));
+            return Optional.of(timeline);
           }
 
           @Override

@@ -531,12 +531,11 @@ public class CachingClusteredClientBenchmark
     }
 
     @Override
-    public Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimeline(
+    public Optional<?  extends TimelineLookup<String, ServerSelector>> getTimeline(
         DataSourceAnalysis analysis
     )
     {
-      String dataSource = (Iterables.getOnlyElement(analysis.getBaseTableDataSource().get()).getName());
-      return Optional.ofNullable(ImmutableMap.of(dataSource, timelines.get(dataSource)));
+      return Optional.ofNullable(timelines.get(analysis.getBaseTableDataSource().get().getName()));
     }
 
     @Override

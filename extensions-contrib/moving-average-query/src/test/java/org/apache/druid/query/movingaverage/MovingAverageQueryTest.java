@@ -309,7 +309,7 @@ public class MovingAverageQueryTest extends InitializedNullHandlingTest
         new TimelineServerView()
         {
           @Override
-          public Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimeline(DataSourceAnalysis analysis)
+          public Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
           {
             return Optional.empty();
           }

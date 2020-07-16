@@ -45,7 +45,7 @@ public interface TimelineServerView extends ServerView
    *
    * @throws IllegalStateException if 'analysis' does not represent a scan-based datasource of a single table
    */
-  Optional<? extends Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimeline(DataSourceAnalysis analysis);
+  Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis);
 
   /**
    * Returns a list of {@link ImmutableDruidServer}

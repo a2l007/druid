@@ -126,7 +126,6 @@ public class DataSourceOptimizer
             .flatMap(interval -> serverView
                 .getTimeline(DataSourceAnalysis.forDataSource(new TableDataSource(derivativeDataSource.getName())))
                 .orElseThrow(() -> new ISE("No timeline for dataSource: %s", derivativeDataSource.getName()))
-                .get(derivativeDataSource.getName())
                 .lookup(interval)
                 .stream()
                 .map(TimelineObjectHolder::getInterval)

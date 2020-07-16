@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Analysis of a datasource for purposes of deciding how to execute a particular query.
@@ -180,14 +181,21 @@ public class DataSourceAnalysis
    * Returns the same datasource as {@link #getBaseDataSource()}, but only if it is a table. Useful on data servers,
    * since they generally can only handle queries where the base datasource is a table.
    */
-  public Optional<List<TableDataSource>> getBaseTableDataSource()
+  public Optional<TableDataSource> getBaseTableDataSource()
   {
     if (baseDataSource instanceof TableDataSource) {
-      return Optional.of(Collections.singletonList((TableDataSource) baseDataSource));
-    } else if (baseDataSource instanceof MultiTableDataSource) {
-      return Optional.of(((MultiTableDataSource) baseDataSource).getDataSources());
+      return Optional.of((TableDataSource) baseDataSource);
     } else {
       return Optional.empty();
+    }
+  }
+
+  public Set<String> getMultipleBaseTableDataSourceNames()
+  {
+    if (baseDataSource instanceof MultiTableDataSource || (baseDataSource instanceof TableDataSource)) {
+      return baseDataSource.getTableNames();
+    } else {
+      return Collections.emptySet();
     }
   }
 
@@ -255,7 +263,7 @@ public class DataSourceAnalysis
     // check is redundant. But in the future, we will likely want to support unions of things other than tables,
     // so check anyway for future-proofing.
     return isConcreteBased() && (baseDataSource instanceof TableDataSource
-                                 || (baseDataSource instanceof UnionDataSource &&
+                                 || (baseDataSource instanceof MultiTableDataSource &&
                                      baseDataSource.getChildren()
                                                    .stream()
                                                    .allMatch(ds -> ds instanceof TableDataSource)));

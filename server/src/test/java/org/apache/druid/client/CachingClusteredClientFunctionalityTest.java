@@ -250,9 +250,9 @@ public class CachingClusteredClientFunctionalityTest
           }
 
           @Override
-          public Optional<Map<String, ? extends TimelineLookup<String, ServerSelector>>> getTimeline(DataSourceAnalysis analysis)
+          public Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
           {
-            return Optional.of(ImmutableMap.of("test", timeline));
+            return Optional.of(timeline);
           }
 
           @Nullable

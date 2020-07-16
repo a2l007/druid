@@ -155,21 +155,11 @@ public class SegmentManager
    *
    * @throws IllegalStateException if 'analysis' does not represent a scan-based datasource of base tables
    */
-  public Optional<List<VersionedIntervalTimeline<String, ReferenceCountingSegment>>> getTimeline(DataSourceAnalysis analysis)
+  public Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> getTimeline(DataSourceAnalysis analysis)
   {
-    final List<TableDataSource> tableDataSources =
-        analysis.getBaseTableDataSource()
-                .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
-
-    List<VersionedIntervalTimeline<String, ReferenceCountingSegment>> intervalTimelines = tableDataSources
-        .stream()
-        .map(TableDataSource::getName)
-        .filter(dataSources::containsKey)
-        .map(tableNameValue -> dataSources.get(
-            tableNameValue).getTimeline())
-        .collect(Collectors.toList());
-
-    return intervalTimelines.isEmpty() ? Optional.empty() : Optional.of(intervalTimelines);
+    final TableDataSource tableDataSource = analysis.getBaseTableDataSource()
+                                                    .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
+    return Optional.ofNullable(dataSources.get(tableDataSource.getName())).map(DataSourceState::getTimeline);
   }
 
   /**

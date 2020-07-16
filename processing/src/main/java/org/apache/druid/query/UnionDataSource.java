@@ -32,10 +32,12 @@ import org.apache.druid.timeline.TimelineObjectHolder;
 import org.joda.time.Interval;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 public class UnionDataSource implements MultiTableDataSource
@@ -88,21 +90,22 @@ public class UnionDataSource implements MultiTableDataSource
   }
 
   @Override
-  public <ObjectType extends Overshadowable<ObjectType>> Map<String, List<TimelineObjectHolder<String, ObjectType>>> retrieveSegmentsForIntervals(
+  public <ObjectType extends Overshadowable<ObjectType>> List<List<TimelineObjectHolder<String, ObjectType>>> retrieveSegmentsForIntervals(
       List<Interval> intervals,
-      Map<String, TimelineLookup<String, ObjectType>> timelineMap
+      Map<String, TimelineLookup<String, ObjectType>> timelineMap,
+      BiFunction<Interval, TimelineLookup<String, ObjectType>, List<TimelineObjectHolder<String, ObjectType>>> biLookupFn
   )
   {
-    Map<String, List<TimelineObjectHolder<String, ObjectType>>> segmentsMap = new HashMap<>();
+    List<List<TimelineObjectHolder<String, ObjectType>>> segmentsList = new ArrayList<>();
     for (String datasource : timelineMap.keySet()) {
+      List<TimelineObjectHolder<String, ObjectType>> dataSourceSegments = Collections.emptyList();
       for (Interval itvl : intervals) {
-        segmentsMap.putIfAbsent(datasource, new ArrayList<>());
-        List<TimelineObjectHolder<String, ObjectType>> segmentListForDataSource = segmentsMap.get(datasource);
-        segmentListForDataSource.addAll(timelineMap.get(datasource).lookup(itvl));
-        segmentsMap.put(datasource, segmentListForDataSource);
+        //segmentListForDataSource.addAll(timelineMap.get(datasource).lookup(itvl));
+        dataSourceSegments.addAll(biLookupFn.apply(itvl,timelineMap.get(datasource)));
       }
+      segmentsList.add(dataSourceSegments);
     }
-    return segmentsMap;
+    return segmentsList;
 
   }
 

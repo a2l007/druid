@@ -34,6 +34,7 @@ import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.query.BySegmentQueryRunner;
 import org.apache.druid.query.CPUTimeMetricQueryRunner;
+import org.apache.druid.query.DataSource;
 import org.apache.druid.query.FinalizeResultsQueryRunner;
 import org.apache.druid.query.MetricsEmittingQueryRunner;
 import org.apache.druid.query.MultiTableDataSource;
@@ -74,10 +75,11 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Query handler for Historical processes (see CliHistorical).
- *
+ * <p>
  * In tests, this class's behavior is partially mimicked by TestClusterQuerySegmentWalker.
  */
 public class ServerManager implements QuerySegmentWalker
@@ -125,14 +127,21 @@ public class ServerManager implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
-    final DataSourceAnalysis analysis = DataSourceAnalysis.forDataSource(query.getDataSource());
     final List<VersionedIntervalTimeline<String, ReferenceCountingSegment>> timelines;
-    final Optional<List<VersionedIntervalTimeline<String, ReferenceCountingSegment>>> maybeTimelines =
-        segmentManager.getTimeline(analysis);
-
-    if (maybeTimelines.isPresent()) {
-      timelines = maybeTimelines.get();
+    if (query.getDataSource() instanceof MultiTableDataSource) {
+      timelines = fetchTimelineForDatasources(query.getDataSource());
     } else {
+      final DataSourceAnalysis analysis = DataSourceAnalysis.forDataSource(query.getDataSource());
+      final Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> maybeTimelines =
+          segmentManager.getTimeline(analysis);
+
+      timelines = new ArrayList<>(1);
+      if (maybeTimelines.isPresent()) {
+        timelines.add(maybeTimelines.get());
+      }
+    }
+
+    if(timelines.isEmpty()) {
       // Note: this is not correct when there's a right or full outer join going on.
       // See https://github.com/apache/druid/issues/9229 for details.
       return new NoopQueryRunner<>();
@@ -175,22 +184,29 @@ public class ServerManager implements QuerySegmentWalker
     }
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    final DataSourceAnalysis analysis = DataSourceAnalysis.forDataSource(query.getDataSource());
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
+    final DataSourceAnalysis analysis = DataSourceAnalysis.forDataSource(query.getDataSource());
 
     final List<VersionedIntervalTimeline<String, ReferenceCountingSegment>> timelines;
 
-    final Optional<List<VersionedIntervalTimeline<String, ReferenceCountingSegment>>> maybeTimelines =
-        segmentManager.getTimeline(analysis);
-
-    // Make sure this query type can handle the subquery, if present.
-    if (analysis.isQuery() && !toolChest.canPerformSubquery(((QueryDataSource) analysis.getDataSource()).getQuery())) {
-      throw new ISE("Cannot handle subquery: %s", analysis.getDataSource());
-    }
-
-    if (maybeTimelines.isPresent()) {
-      timelines = maybeTimelines.get();
+    if (query.getDataSource() instanceof MultiTableDataSource) {
+      timelines = fetchTimelineForDatasources(query.getDataSource());
     } else {
+      final Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> maybeTimelines =
+          segmentManager.getTimeline(analysis);
+
+      // Make sure this query type can handle the subquery, if present.
+      if (analysis.isQuery()
+          && !toolChest.canPerformSubquery(((QueryDataSource) analysis.getDataSource()).getQuery())) {
+        throw new ISE("Cannot handle subquery: %s", analysis.getDataSource());
+      }
+      timelines = new ArrayList<>(1);
+
+      if (maybeTimelines.isPresent()) {
+        timelines.add(maybeTimelines.get());
+      }
+    }
+    if (timelines.isEmpty()) {
       // Note: this is not correct when there's a right or full outer join going on.
       // See https://github.com/apache/druid/issues/9229 for details.
       return new NoopQueryRunner<>();
@@ -257,6 +273,16 @@ public class ServerManager implements QuerySegmentWalker
         cpuTimeAccumulator,
         true
     );
+  }
+
+  private List<VersionedIntervalTimeline<String, ReferenceCountingSegment>> fetchTimelineForDatasources(DataSource multiDataSource) {
+    return ((MultiTableDataSource) multiDataSource).getDataSources()
+                                                  .stream()
+                                                  .map(DataSourceAnalysis::forDataSource)
+                                                  .map(segmentManager::getTimeline)
+                                                  .filter(Optional::isPresent)
+                                                  .map(Optional::get)
+                                                  .collect(Collectors.toList());
   }
 
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(
