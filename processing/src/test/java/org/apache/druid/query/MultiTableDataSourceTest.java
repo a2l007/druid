@@ -1,0 +1,49 @@
+package org.apache.druid.query;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import org.apache.druid.segment.TestHelper;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.io.IOException;
+
+public class MultiTableDataSourceTest
+{
+  private static final ObjectMapper JSON_MAPPER = TestHelper.makeJsonMapper();
+
+  @Test
+  public void testSerialization() throws IOException
+  {
+    MultiTableDataSource dataSource = new UnionDataSource(ImmutableList.of(
+        new TableDataSource("datasource1"),
+        new TableDataSource("datasource2")
+    ));
+    String json = JSON_MAPPER.writeValueAsString(dataSource);
+    MultiTableDataSource serdeDataSource = JSON_MAPPER.readValue(json, MultiTableDataSource.class);
+    Assert.assertEquals(dataSource, serdeDataSource);
+  }
+
+  @Test
+  public void testUnionDataSource() throws Exception
+  {
+    MultiTableDataSource dataSource = JSON_MAPPER.readValue(
+        "{\"type\":\"union\", \"dataSources\":[\"datasource1\", \"datasource2\"]}",
+        MultiTableDataSource.class
+    );
+    Assert.assertTrue(dataSource instanceof MultiTableDataSource);
+    Assert.assertEquals(
+        Lists.newArrayList(new TableDataSource("datasource1"), new TableDataSource("datasource2")),
+        Lists.newArrayList(dataSource.getDataSources())
+    );
+    Assert.assertEquals(
+        ImmutableSet.of("datasource1", "datasource2"),
+        dataSource.getTableNames()
+    );
+
+    final MultiTableDataSource serde = JSON_MAPPER.readValue(JSON_MAPPER.writeValueAsString(dataSource), MultiTableDataSource.class);
+    Assert.assertEquals(dataSource, serde);
+  }
+}

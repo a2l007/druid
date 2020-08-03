@@ -20,7 +20,6 @@
 package org.apache.druid.server.coordination;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import org.apache.druid.client.CachingQueryRunner;
@@ -73,8 +72,10 @@ import org.joda.time.Interval;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -82,7 +83,7 @@ import java.util.stream.Collectors;
 
 /**
  * Query handler for Historical processes (see CliHistorical).
- *
+ * <p>
  * In tests, this class's behavior is partially mimicked by TestClusterQuerySegmentWalker.
  */
 public class ServerManager implements QuerySegmentWalker
@@ -144,13 +145,14 @@ public class ServerManager implements QuerySegmentWalker
       }
     }
 
-    if(timelines.isEmpty()) {
+    if (timelines.isEmpty()) {
       // Even though we didn't find a timeline for the query datasource, we simply returns a noopQueryRunner
       // instead of reporting missing intervals because the query intervals are a filter rather than something
       // we must find.
       return new NoopQueryRunner<>();
     }
 
+    //TODO CHeck if this returns a timeline for each interval looked up
     FunctionalIterable<SegmentDescriptor> segmentDescriptors = FunctionalIterable
         .create(timelines)
         .transformCat(tLine -> FunctionalIterable.create(intervals).transformCat(itvl -> tLine.lookup(itvl)))
@@ -198,7 +200,7 @@ public class ServerManager implements QuerySegmentWalker
     if (query.getDataSource() instanceof MultiTableDataSource) {
       timelines = fetchTimelineForDatasources(query.getDataSource());
     } else {
-      final Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> maybeTimelines =
+      final Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> maybeTimeline =
           segmentManager.getTimeline(analysis);
 
       // Make sure this query type can handle the subquery, if present.
@@ -208,8 +210,8 @@ public class ServerManager implements QuerySegmentWalker
       }
       timelines = new ArrayList<>(1);
 
-      if (maybeTimelines.isPresent()) {
-        timelines.add(maybeTimelines.get());
+      if (maybeTimeline.isPresent()) {
+        timelines.add(maybeTimeline.get());
       }
     }
     if (timelines.isEmpty()) {
@@ -227,15 +229,22 @@ public class ServerManager implements QuerySegmentWalker
     // This is to handle cases where multiple datasources may have the same SegmentDescriptor for an interval.
     // In such a case, there will be duplicate segment descriptor entries within the iterable which may result
     // in data being fetched from a datasource multiple times.
-    if (query.getDataSource() instanceof MultiTableDataSource) {
+   /* if (query.getDataSource() instanceof MultiTableDataSource) {
       specs = ImmutableSet.copyOf(specs);
     }
 
-    final FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
-        .create(specs)
-        .transformCat(
-            descriptor ->
-                buildQueryRunnerForSegment(
+    */
+
+    final FunctionalIterable<QueryRunner<T>> queryRunners;
+    if (query.getDataSource() instanceof MultiTableDataSource) {
+      Set<SegmentDescriptor> processedSegments = new HashSet<>();
+      queryRunners = FunctionalIterable
+          .create(specs)
+          .filter(descriptor -> !processedSegments.contains(descriptor))
+          .transformCat(
+              descriptor -> {
+                processedSegments.add(descriptor);
+                return buildQueryRunnersForSegment(
                     query,
                     descriptor,
                     factory,
@@ -243,9 +252,25 @@ public class ServerManager implements QuerySegmentWalker
                     timelines,
                     segmentMapFn,
                     cpuTimeAccumulator
-                )
-        );
-
+                );
+              }
+          );
+    } else {
+      queryRunners = FunctionalIterable
+          .create(specs)
+          .transformCat(
+              descriptor ->
+                  buildQueryRunnersForSegment(
+                      query,
+                      descriptor,
+                      factory,
+                      toolChest,
+                      timelines,
+                      segmentMapFn,
+                      cpuTimeAccumulator
+                  )
+          );
+    }
     return CPUTimeMetricQueryRunner.safeBuild(
         new FinalizeResultsQueryRunner<>(
             toolChest.mergeResults(factory.mergeRunners(exec, queryRunners)),
@@ -268,7 +293,8 @@ public class ServerManager implements QuerySegmentWalker
                                                    .map(Optional::get)
                                                    .collect(Collectors.toList());
   }
-  <T> List<QueryRunner<T>> buildQueryRunnerForSegment(
+
+  <T> List<QueryRunner<T>> buildQueryRunnersForSegment(
       final Query<T> query,
       final SegmentDescriptor descriptor,
       final QueryRunnerFactory<T, Query<T>> factory,
@@ -285,29 +311,28 @@ public class ServerManager implements QuerySegmentWalker
           descriptor.getVersion()
       );
 
-      if (entry == null) {
-        return Collections.singletonList(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
-      }
+      if (entry != null) {
+        final PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(descriptor.getPartitionNumber());
+        if (chunk == null) {
+          queryRunnerList.add(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
+        } else {
 
-      final PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(descriptor.getPartitionNumber());
-      if (chunk == null) {
-        return Collections.singletonList(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
+          final ReferenceCountingSegment segment = chunk.getObject();
+          queryRunnerList.add(buildAndDecorateQueryRunner(
+              factory,
+              toolChest,
+              segmentMapFn.apply(segment),
+              descriptor,
+              cpuTimeAccumulator
+          ));
+        }
       }
-
-      final ReferenceCountingSegment segment = chunk.getObject();
-      queryRunnerList.add(buildAndDecorateQueryRunner(
-          factory,
-          toolChest,
-          segmentMapFn.apply(segment),
-          descriptor,
-          cpuTimeAccumulator
-      ));
     }
-      if (queryRunnerList.isEmpty()) {
-        return Collections.singletonList(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
-      }
-      return queryRunnerList;
+    if (queryRunnerList.isEmpty()) {
+      return Collections.singletonList(new ReportTimelineMissingSegmentQueryRunner<>(descriptor));
     }
+    return queryRunnerList;
+  }
 
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(
       final QueryRunnerFactory<T, Query<T>> factory,

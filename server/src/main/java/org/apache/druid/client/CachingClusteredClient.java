@@ -82,7 +82,6 @@ import org.apache.druid.timeline.TimelineObjectHolder;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 import org.apache.druid.timeline.partition.PartitionChunk;
 import org.apache.druid.timeline.partition.PartitionHolder;
-import org.apache.druid.utils.CollectionUtils;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
@@ -335,23 +334,26 @@ public class CachingClusteredClient implements QuerySegmentWalker
     )
     {
       final List<TimelineObjectHolder<String, ServerSelector>> serversLookup;
-      final BiFunction<Interval, TimelineLookup<String, ServerSelector>, List<TimelineObjectHolder<String, ServerSelector>>> biLookupFn
-          = (interval, timeline) -> {
-        if (specificSegments) {
-          return timeline.lookupWithIncompletePartitions(interval);
-        } else {
-          return timeline.lookup(interval);
-        }
-      };
-      //TODO Add multidatasource check here and call getTimeline for each datasource separately
+
+      //Handles MultiTableDataSource based queries. Within core Druid, only UnionDataSource falls under this category.
       if (query.getDataSource() instanceof MultiTableDataSource) {
         Map<String, TimelineLookup<String, ServerSelector>> timelineMap = new HashMap<>();
+        final BiFunction<Interval, TimelineLookup<String, ServerSelector>, List<TimelineObjectHolder<String, ServerSelector>>> biLookupFn
+            = (interval, timeline) -> {
+              if (specificSegments) {
+                return timeline.lookupWithIncompletePartitions(interval);
+              } else {
+                return timeline.lookup(interval);
+              }
+            };
 
         for (TableDataSource ds : ((MultiTableDataSource) query.getDataSource()).getDataSources()) {
-          Optional<? extends TimelineLookup<String, ServerSelector>> timeline = serverView.getTimeline(
-              DataSourceAnalysis.forDataSource(ds));
-          if (timeline.isPresent()) {
-            timelineMap.put(ds.getName(), timelineConverter.apply(timeline.get()));
+          TimelineLookup<String, ServerSelector> timeline = fetchTimelineForDataSource(
+              timelineConverter,
+              DataSourceAnalysis.forDataSource(ds)
+          );
+          if (timeline != null) {
+            timelineMap.put(ds.getName(), timelineConverter.apply(timeline));
           }
         }
         if (uncoveredIntervalsLimit > 0) {
@@ -375,14 +377,13 @@ public class CachingClusteredClient implements QuerySegmentWalker
                                                    .collect(Collectors.toList());
 
       } else {
-        Optional<? extends TimelineLookup<String, ServerSelector>> maybeTimeline = serverView.getTimeline(
+        TimelineLookup<String, ServerSelector> timeline = fetchTimelineForDataSource(
+            timelineConverter,
             dataSourceAnalysis
         );
-        if (!maybeTimeline.isPresent()) {
+        if (timeline == null) {
           return new ClusterQueryResult<>(Sequences.empty(), 0);
         }
-
-        TimelineLookup<String, ServerSelector> timeline = timelineConverter.apply(maybeTimeline.get());
         if (uncoveredIntervalsLimit > 0) {
           computeUncoveredIntervals(Collections.singletonList(timeline));
         }
@@ -395,7 +396,8 @@ public class CachingClusteredClient implements QuerySegmentWalker
                      .collect(Collectors.toList())
         );
       }
-      final Set<SegmentServerSelector> segmentServers = computeSegmentsToQuery(serversLookup);
+
+      final Set<SegmentServerSelector> segmentServers = filterSegmentsToQuery(serversLookup);
       @Nullable
       final byte[] queryCacheKey = computeQueryCacheKey();
       if (query.getContext().get(QueryResource.HEADER_IF_NONE_MATCH) != null) {
@@ -423,6 +425,22 @@ public class CachingClusteredClient implements QuerySegmentWalker
       });
 
       return new ClusterQueryResult<>(scheduler.run(query, mergedResultSequence), segmentsByServer.size());
+    }
+
+    @Nullable
+    private TimelineLookup<String, ServerSelector> fetchTimelineForDataSource(
+        final UnaryOperator<TimelineLookup<String, ServerSelector>> timelineConverter,
+        DataSourceAnalysis analysis
+    )
+    {
+      Optional<? extends TimelineLookup<String, ServerSelector>> maybeTimeline = serverView.getTimeline(
+          analysis
+      );
+      if (!maybeTimeline.isPresent()) {
+        return null;
+      }
+
+      return timelineConverter.apply(maybeTimeline.get());
     }
 
     private Sequence<T> merge(List<Sequence<T>> sequencesByInterval)
@@ -461,7 +479,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
       }
     }
 
-    private Set<SegmentServerSelector> computeSegmentsToQuery(
+    private Set<SegmentServerSelector> filterSegmentsToQuery(
         List<TimelineObjectHolder<String, ServerSelector>> serversLookup
     )
     {
@@ -493,7 +511,6 @@ public class CachingClusteredClient implements QuerySegmentWalker
         );
       }
       */
-      // TODO Extract following to a new method that accepts  serversLookup and returns segments
       final Set<SegmentServerSelector> segments = new LinkedHashSet<>();
       final Map<String, Optional<RangeSet<String>>> dimensionRangeCache = new HashMap<>();
       // Filter unneeded chunks based on partition dimension

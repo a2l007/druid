@@ -32,8 +32,6 @@ import org.apache.druid.timeline.TimelineObjectHolder;
 import org.joda.time.Interval;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -98,11 +96,17 @@ public class UnionDataSource implements MultiTableDataSource
   {
     List<List<TimelineObjectHolder<String, ObjectType>>> segmentsList = new ArrayList<>();
     for (String datasource : timelineMap.keySet()) {
-      List<TimelineObjectHolder<String, ObjectType>> dataSourceSegments = Collections.emptyList();
-      for (Interval itvl : intervals) {
+
+      /*for (Interval itvl : intervals) {
         //segmentListForDataSource.addAll(timelineMap.get(datasource).lookup(itvl));
         dataSourceSegments.addAll(biLookupFn.apply(itvl,timelineMap.get(datasource)));
-      }
+      }*/
+      List<TimelineObjectHolder<String, ObjectType>> dataSourceSegments = intervals.stream()
+                                                                                   .flatMap(itvl -> biLookupFn.apply(
+                                                                                       itvl,
+                                                                                       timelineMap.get(datasource))
+                                                                                                              .stream())
+                                                                                   .collect(Collectors.toList());
       segmentsList.add(dataSourceSegments);
     }
     return segmentsList;

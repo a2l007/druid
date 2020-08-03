@@ -104,7 +104,7 @@ import java.util.UUID;
 
 /**
  * Tests ClientQuerySegmentWalker.
- *
+ * <p>
  * Note that since SpecificSegmentsQuerySegmentWalker in the druid-sql module also uses ClientQuerySegmentWalker, it's
  * also exercised pretty well by the SQL tests (especially CalciteQueryTest). This class adds an extra layer of testing.
  * In particular, this class makes it easier to add tests that validate queries are *made* in the correct way, not just
@@ -125,10 +125,10 @@ public class ClientQuerySegmentWalkerTest
 
   private static final InlineDataSource FOO_INLINE = InlineDataSource.fromIterable(
       ImmutableList.<Object[]>builder()
-          .add(new Object[]{INTERVAL.getStartMillis(), "x", 1})
-          .add(new Object[]{INTERVAL.getStartMillis(), "x", 2})
-          .add(new Object[]{INTERVAL.getStartMillis(), "y", 3})
-          .add(new Object[]{INTERVAL.getStartMillis(), "z", 4})
+          .add(new Object[] {INTERVAL.getStartMillis(), "x", 1})
+          .add(new Object[] {INTERVAL.getStartMillis(), "x", 2})
+          .add(new Object[] {INTERVAL.getStartMillis(), "y", 3})
+          .add(new Object[] {INTERVAL.getStartMillis(), "z", 4})
           .build(),
       RowSignature.builder()
                   .addTimeColumn()
@@ -139,10 +139,10 @@ public class ClientQuerySegmentWalkerTest
 
   private static final InlineDataSource BAR_INLINE = InlineDataSource.fromIterable(
       ImmutableList.<Object[]>builder()
-          .add(new Object[]{INTERVAL.getStartMillis(), "a", 1})
-          .add(new Object[]{INTERVAL.getStartMillis(), "a", 2})
-          .add(new Object[]{INTERVAL.getStartMillis(), "b", 3})
-          .add(new Object[]{INTERVAL.getStartMillis(), "c", 4})
+          .add(new Object[] {INTERVAL.getStartMillis(), "a", 1})
+          .add(new Object[] {INTERVAL.getStartMillis(), "a", 2})
+          .add(new Object[] {INTERVAL.getStartMillis(), "b", 3})
+          .add(new Object[] {INTERVAL.getStartMillis(), "c", 4})
           .build(),
       RowSignature.builder()
                   .addTimeColumn()
@@ -153,10 +153,10 @@ public class ClientQuerySegmentWalkerTest
 
   private static final InlineDataSource MULTI_VALUE_INLINE = InlineDataSource.fromIterable(
       ImmutableList.<Object[]>builder()
-          .add(new Object[]{INTERVAL.getStartMillis(), ImmutableList.of("a", "b"), 1})
-          .add(new Object[]{INTERVAL.getStartMillis(), ImmutableList.of("a", "c"), 2})
-          .add(new Object[]{INTERVAL.getStartMillis(), ImmutableList.of("b"), 3})
-          .add(new Object[]{INTERVAL.getStartMillis(), ImmutableList.of("c"), 4})
+          .add(new Object[] {INTERVAL.getStartMillis(), ImmutableList.of("a", "b"), 1})
+          .add(new Object[] {INTERVAL.getStartMillis(), ImmutableList.of("a", "c"), 2})
+          .add(new Object[] {INTERVAL.getStartMillis(), ImmutableList.of("b"), 3})
+          .add(new Object[] {INTERVAL.getStartMillis(), ImmutableList.of("c"), 4})
           .build(),
       RowSignature.builder()
                   .addTimeColumn()
@@ -216,7 +216,7 @@ public class ClientQuerySegmentWalkerTest
     testQuery(
         query,
         ImmutableList.of(ExpectedQuery.cluster(query)),
-        ImmutableList.of(new Object[]{INTERVAL.getStartMillis(), 10L})
+        ImmutableList.of(new Object[] {INTERVAL.getStartMillis(), 10L})
     );
 
     Assert.assertEquals(1, scheduler.getTotalRun().get());
@@ -252,7 +252,7 @@ public class ClientQuerySegmentWalkerTest
     testQuery(
         query,
         ImmutableList.of(ExpectedQuery.cluster(expectedClusterQuery)),
-        ImmutableList.of(new Object[]{INTERVAL.getStartMillis(), 10L})
+        ImmutableList.of(new Object[] {INTERVAL.getStartMillis(), 10L})
     );
 
     Assert.assertEquals(1, scheduler.getTotalRun().get());
@@ -276,7 +276,7 @@ public class ClientQuerySegmentWalkerTest
     testQuery(
         query,
         ImmutableList.of(ExpectedQuery.local(query)),
-        ImmutableList.of(new Object[]{INTERVAL.getStartMillis(), 10L})
+        ImmutableList.of(new Object[] {INTERVAL.getStartMillis(), 10L})
     );
 
     Assert.assertEquals(1, scheduler.getTotalRun().get());
@@ -312,13 +312,13 @@ public class ClientQuerySegmentWalkerTest
             ExpectedQuery.local(
                 query.withDataSource(
                     InlineDataSource.fromIterable(
-                        ImmutableList.of(new Object[]{"x"}, new Object[]{"y"}, new Object[]{"z"}),
+                        ImmutableList.of(new Object[] {"x"}, new Object[] {"y"}, new Object[] {"z"}),
                         RowSignature.builder().add("s", ValueType.STRING).build()
                     )
                 )
             )
         ),
-        ImmutableList.of(new Object[]{Intervals.ETERNITY.getStartMillis(), 3L})
+        ImmutableList.of(new Object[] {Intervals.ETERNITY.getStartMillis(), 3L})
     );
 
     // note: this should really be 1, but in the interim queries that are composed of multiple queries count each
@@ -354,7 +354,7 @@ public class ClientQuerySegmentWalkerTest
         query,
         // GroupBy handles its own subqueries; only the inner one will go to the cluster.
         ImmutableList.of(ExpectedQuery.cluster(subquery)),
-        ImmutableList.of(new Object[]{3L})
+        ImmutableList.of(new Object[] {3L})
     );
 
     Assert.assertEquals(1, scheduler.getTotalRun().get());
@@ -386,25 +386,26 @@ public class ClientQuerySegmentWalkerTest
     testQuery(
         query,
         ImmutableList.of(
-            ExpectedQuery.cluster(query.withDataSource(new TableDataSource(FOO))),
-            ExpectedQuery.cluster(query.withDataSource(new TableDataSource(BAR)))
-        ),
+            ExpectedQuery.cluster(query.withDataSource(new UnionDataSource(ImmutableList.of(
+                new TableDataSource(FOO),
+                new TableDataSource(BAR)
+            ))))),
         ImmutableList.of(
-            new Object[]{"a", 2L},
-            new Object[]{"b", 1L},
-            new Object[]{"c", 1L},
-            new Object[]{"x", 2L},
-            new Object[]{"y", 1L},
-            new Object[]{"z", 1L}
+            new Object[] {"a", 2L},
+            new Object[] {"b", 1L},
+            new Object[] {"c", 1L},
+            new Object[] {"x", 2L},
+            new Object[] {"y", 1L},
+            new Object[] {"z", 1L}
         )
     );
 
     // note: this should really be 1, but in the interim queries that are composed of multiple queries count each
     // invocation of either the cluster or local walker in ClientQuerySegmentWalker
-    Assert.assertEquals(2, scheduler.getTotalRun().get());
-    Assert.assertEquals(2, scheduler.getTotalPrioritizedAndLaned().get());
-    Assert.assertEquals(2, scheduler.getTotalAcquired().get());
-    Assert.assertEquals(2, scheduler.getTotalReleased().get());
+    Assert.assertEquals(1, scheduler.getTotalRun().get());
+    Assert.assertEquals(1, scheduler.getTotalPrioritizedAndLaned().get());
+    Assert.assertEquals(1, scheduler.getTotalAcquired().get());
+    Assert.assertEquals(1, scheduler.getTotalReleased().get());
   }
 
   @Test
@@ -448,7 +449,7 @@ public class ClientQuerySegmentWalkerTest
                         ImmutableList.of(
                             query.getDataSource().getChildren().get(0),
                             InlineDataSource.fromIterable(
-                                ImmutableList.of(new Object[]{"y"}),
+                                ImmutableList.of(new Object[] {"y"}),
                                 RowSignature.builder().add("s", ValueType.STRING).build()
                             )
                         )
@@ -456,7 +457,7 @@ public class ClientQuerySegmentWalkerTest
                 )
             )
         ),
-        ImmutableList.of(new Object[]{"y", "y", 1L})
+        ImmutableList.of(new Object[] {"y", "y", 1L})
     );
 
     // note: this should really be 1, but in the interim queries that are composed of multiple queries count each
@@ -499,10 +500,10 @@ public class ClientQuerySegmentWalkerTest
                 query.withDataSource(
                     InlineDataSource.fromIterable(
                         ImmutableList.of(
-                            new Object[]{ImmutableList.of("a", "b"), 1},
-                            new Object[]{ImmutableList.of("a", "c"), 2},
-                            new Object[]{ImmutableList.of("b"), 3},
-                            new Object[]{ImmutableList.of("c"), 4}
+                            new Object[] {ImmutableList.of("a", "b"), 1},
+                            new Object[] {ImmutableList.of("a", "c"), 2},
+                            new Object[] {ImmutableList.of("b"), 3},
+                            new Object[] {ImmutableList.of("c"), 4}
                         ),
                         RowSignature.builder().add("s", null).add("n", null).build()
                     )
@@ -510,9 +511,9 @@ public class ClientQuerySegmentWalkerTest
             )
         ),
         ImmutableList.of(
-            new Object[]{"a", 3L},
-            new Object[]{"b", 4L},
-            new Object[]{"c", 6L}
+            new Object[] {"a", 3L},
+            new Object[] {"b", 4L},
+            new Object[] {"c", 6L}
         )
     );
 
@@ -555,10 +556,10 @@ public class ClientQuerySegmentWalkerTest
                 query.withDataSource(
                     InlineDataSource.fromIterable(
                         ImmutableList.of(
-                            new Object[]{ImmutableList.of("a", "b"), 1},
-                            new Object[]{ImmutableList.of("a", "c"), 2},
-                            new Object[]{ImmutableList.of("b"), 3},
-                            new Object[]{ImmutableList.of("c"), 4}
+                            new Object[] {ImmutableList.of("a", "b"), 1},
+                            new Object[] {ImmutableList.of("a", "c"), 2},
+                            new Object[] {ImmutableList.of("b"), 3},
+                            new Object[] {ImmutableList.of("c"), 4}
                         ),
                         RowSignature.builder().add("s", null).add("n", null).build()
                     )
@@ -566,9 +567,9 @@ public class ClientQuerySegmentWalkerTest
             )
         ),
         ImmutableList.of(
-            new Object[]{Intervals.ETERNITY.getStartMillis(), "c", 6L},
-            new Object[]{Intervals.ETERNITY.getStartMillis(), "b", 4L},
-            new Object[]{Intervals.ETERNITY.getStartMillis(), "a", 3L}
+            new Object[] {Intervals.ETERNITY.getStartMillis(), "c", 6L},
+            new Object[] {Intervals.ETERNITY.getStartMillis(), "b", 4L},
+            new Object[] {Intervals.ETERNITY.getStartMillis(), "a", 3L}
         )
     );
 
@@ -733,7 +734,7 @@ public class ClientQuerySegmentWalkerTest
                 segmentWrangler,
                 joinableFactory,
                 schedulerForTest
-                ),
+            ),
             ClusterOrLocal.LOCAL
         ),
         conglomerate,

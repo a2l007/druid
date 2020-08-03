@@ -28,7 +28,6 @@ import org.apache.druid.query.MultiTableDataSource;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryDataSource;
 import org.apache.druid.query.TableDataSource;
-import org.apache.druid.query.UnionDataSource;
 import org.apache.druid.query.spec.QuerySegmentSpec;
 
 import javax.annotation.Nullable;
@@ -190,7 +189,7 @@ public class DataSourceAnalysis
     }
   }
 
-  public Set<String> getMultipleBaseTableDataSourceNames()
+  public Set<String> getBaseTableDataSourceNames()
   {
     if (baseDataSource instanceof MultiTableDataSource || (baseDataSource instanceof TableDataSource)) {
       return baseDataSource.getTableNames();
