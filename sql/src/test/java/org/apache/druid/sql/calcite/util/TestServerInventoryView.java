@@ -92,7 +92,7 @@ public class TestServerInventoryView implements TimelineServerView
   }
 
   @Override
-  public Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
+  public Optional<TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
   {
     throw new UnsupportedOperationException();
   }

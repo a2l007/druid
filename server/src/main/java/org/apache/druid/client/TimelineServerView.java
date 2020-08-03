@@ -40,7 +40,7 @@ public interface TimelineServerView extends ServerView
    *
    * @param analysis data source analysis information
    *
-   * @return timeline, if it exists
+   * @return dataSource name mapped to its timeline, if it exists
    *
    * @throws IllegalStateException if 'analysis' does not represent a scan-based datasource of a single table
    */

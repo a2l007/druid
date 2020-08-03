@@ -528,7 +528,9 @@ public class CachingClusteredClientBenchmark
     }
 
     @Override
-    public Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(DataSourceAnalysis analysis)
+    public Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(
+        DataSourceAnalysis analysis
+    )
     {
       return Optional.ofNullable(timelines.get(analysis.getBaseTableDataSource().get().getName()));
     }

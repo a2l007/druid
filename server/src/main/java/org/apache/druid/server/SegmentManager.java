@@ -144,21 +144,19 @@ public class SegmentManager
   }
 
   /**
-   * Returns the timeline for a datasource, if it exists. The analysis object passed in must represent a scan-based
-   * datasource of a single table.
+   * Returns the timelines associated with a datasource, if it exists. The analysis object passed in must represent a scan-based
+   * datasource of one or more base tables.
    *
    * @param analysis data source analysis information
    *
-   * @return timeline, if it exists
+   * @return collection of timelines, if it exists
    *
-   * @throws IllegalStateException if 'analysis' does not represent a scan-based datasource of a single table
+   * @throws IllegalStateException if 'analysis' does not represent a scan-based datasource of base tables
    */
   public Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> getTimeline(DataSourceAnalysis analysis)
   {
-    final TableDataSource tableDataSource =
-        analysis.getBaseTableDataSource()
-                .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
-
+    final TableDataSource tableDataSource = analysis.getBaseTableDataSource()
+                                                    .orElseThrow(() -> new ISE("Cannot handle datasource: %s", analysis.getDataSource()));
     return Optional.ofNullable(dataSources.get(tableDataSource.getName())).map(DataSourceState::getTimeline);
   }
 
