@@ -31,7 +31,6 @@ import org.apache.druid.timeline.TimelineLookup;
 import org.apache.druid.timeline.TimelineObjectHolder;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 import org.apache.druid.timeline.partition.NumberedPartitionChunk;
-import org.apache.druid.timeline.partition.NumberedShardSpec;
 import org.apache.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -39,12 +38,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import javax.xml.crypto.Data;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 
 public class UnionDataSourceTest
 {
@@ -162,53 +159,138 @@ public class UnionDataSourceTest
   public void test_retrieveSegmentsForIntervals() throws Exception
   {
     final DataSegment fooSegment1 = new DataSegment(
-        FOO, Intervals.of("2020-07-01T00:00:00.000Z/2020-07-01T01:00:00.000Z"), "v1",
-        null, null, null, null
-        , 0, 0
+        FOO,
+        Intervals.of("2020-07-01T00:00:00.000Z/2020-07-01T01:00:00.000Z"),
+        "v1",
+        null,
+        null,
+        null,
+        null,
+        0,
+        0
     );
 
     final DataSegment fooSegment2 = new DataSegment(
-        FOO, Intervals.of("2020-07-01T01:00:00.000Z/2020-07-01T02:00:00.000Z"), "v1",
-        null, null, null, null, 0, 0
+        FOO,
+        Intervals.of("2020-07-01T01:00:00.000Z/2020-07-01T02:00:00.000Z"),
+        "v1",
+        null,
+        null,
+        null,
+        null,
+        0,
+        0
     );
 
     final DataSegment fooSegment3 = new DataSegment(
-        FOO, Intervals.of("2020-07-01T02:00:00.000Z/2020-07-01T03:00:00.000Z"), "v1",
-        null, null, null, null, 0, 0
+        FOO,
+        Intervals.of("2020-07-01T02:00:00.000Z/2020-07-01T03:00:00.000Z"),
+        "v1",
+        null,
+        null,
+        null,
+        null,
+        0,
+        0
     );
 
     final DataSegment barSegment1 = new DataSegment(
-        BAR, Intervals.of("2020-07-01T20:00:00.000Z/2020-07-01T21:00:00.000Z"), "v1",
-        null, null, null, null, 0, 0
+        BAR,
+        Intervals.of("2020-07-01T20:00:00.000Z/2020-07-01T21:00:00.000Z"),
+        "v1",
+        null,
+        null,
+        null,
+        null,
+        0,
+        0
     );
 
     final DataSegment barSegment2 = new DataSegment(
-        BAR, Intervals.of("2020-07-01T22:00:00.000Z/2020-07-01T23:00:00.000Z"), "v1",
-        null, null, null, null, 0, 0
+        BAR,
+        Intervals.of("2020-07-01T22:00:00.000Z/2020-07-01T23:00:00.000Z"),
+        "v1",
+        null,
+        null,
+        null,
+        null,
+        0,
+        0
     );
     TimelineLookup<String, DataSegment> fooTimeLine = VersionedIntervalTimeline.forSegments(ImmutableList.of(
-      fooSegment1,
-      fooSegment2,
-      fooSegment3));
-    TimelineLookup<String, DataSegment> barTimeLine = VersionedIntervalTimeline.forSegments(ImmutableList.of(barSegment1, barSegment2));
-    Map<String, TimelineLookup<String,DataSegment>> timelineMap = ImmutableMap.of(
+        fooSegment1,
+        fooSegment2,
+        fooSegment3
+    ));
+    TimelineLookup<String, DataSegment> barTimeLine = VersionedIntervalTimeline.forSegments(ImmutableList.of(
+        barSegment1,
+        barSegment2
+    ));
+    Map<String, TimelineLookup<String, DataSegment>> timelineMap = ImmutableMap.of(
         FOO,
         fooTimeLine,
         BAR,
         barTimeLine
     );
-    List<Interval> intervals = ImmutableList.of(Intervals.of("2020-07-01/2020-07-02"),Intervals.of("2020-07-02/2020-07-03"));
+    List<Interval> intervals = ImmutableList.of(
+        Intervals.of("2020-07-01/2020-07-02"),
+        Intervals.of("2020-07-02/2020-07-03")
+    );
 
-    List<List<TimelineObjectHolder<String, DataSegment>>> multiDataSourceServerLookup = unionDataSource.retrieveSegmentsForIntervals(intervals, timelineMap, (interval, timeline) ->
-       timeline.lookup(interval));
+    List<List<TimelineObjectHolder<String, DataSegment>>> multiDataSourceServerLookup = unionDataSource.retrieveSegmentsForIntervals(
+        intervals,
+        timelineMap,
+        (interval, timeline) ->
+            timeline.lookup(interval)
+    );
     List<TimelineObjectHolder<String, DataSegment>> fooTimelineObjects = new ArrayList<>();
-    fooTimelineObjects.add(new TimelineObjectHolder<>(Intervals.of("2020-07-01T00:00:00.000Z/2020-07-01T01:00:00.000Z"), "v1", new PartitionHolder<>(new NumberedPartitionChunk<>(0, 1, fooSegment1))));
-    fooTimelineObjects.add(new TimelineObjectHolder<>(Intervals.of("2020-07-01T01:00:00.000Z/2020-07-01T02:00:00.000Z"), "v1", new PartitionHolder<>(new NumberedPartitionChunk<>(0, 1, fooSegment2))));
-    fooTimelineObjects.add(new TimelineObjectHolder<>(Intervals.of("2020-07-01T02:00:00.000Z/2020-07-01T03:00:00.000Z"), "v1", new PartitionHolder<>(new NumberedPartitionChunk<>(0, 1, fooSegment3))));
+    fooTimelineObjects.add(new TimelineObjectHolder<>(
+        Intervals.of("2020-07-01T00:00:00.000Z/2020-07-01T01:00:00.000Z"),
+        "v1",
+        new PartitionHolder<>(new NumberedPartitionChunk<>(
+            0,
+            1,
+            fooSegment1
+        ))
+    ));
+    fooTimelineObjects.add(new TimelineObjectHolder<>(
+        Intervals.of("2020-07-01T01:00:00.000Z/2020-07-01T02:00:00.000Z"),
+        "v1",
+        new PartitionHolder<>(new NumberedPartitionChunk<>(
+            0,
+            1,
+            fooSegment2
+        ))
+    ));
+    fooTimelineObjects.add(new TimelineObjectHolder<>(
+        Intervals.of("2020-07-01T02:00:00.000Z/2020-07-01T03:00:00.000Z"),
+        "v1",
+        new PartitionHolder<>(new NumberedPartitionChunk<>(
+            0,
+            1,
+            fooSegment3
+        ))
+    ));
 
     List<TimelineObjectHolder<String, DataSegment>> barTimelineObjects = new ArrayList<>();
-    barTimelineObjects.add(new TimelineObjectHolder<>(Intervals.of("2020-07-01T20:00:00.000Z/2020-07-01T21:00:00.000Z"), "v1", new PartitionHolder<>(new NumberedPartitionChunk<>(0, 1, barSegment1))));
-    barTimelineObjects.add(new TimelineObjectHolder<>(Intervals.of("2020-07-01T22:00:00.000Z/2020-07-01T23:00:00.000Z"), "v1", new PartitionHolder<>(new NumberedPartitionChunk<>(0, 1, barSegment2))));
-    Assert.assertEquals(ImmutableList.of(fooTimelineObjects,barTimelineObjects), multiDataSourceServerLookup);
+    barTimelineObjects.add(new TimelineObjectHolder<>(
+        Intervals.of("2020-07-01T20:00:00.000Z/2020-07-01T21:00:00.000Z"),
+        "v1",
+        new PartitionHolder<>(new NumberedPartitionChunk<>(
+            0,
+            1,
+            barSegment1
+        ))
+    ));
+    barTimelineObjects.add(new TimelineObjectHolder<>(
+        Intervals.of("2020-07-01T22:00:00.000Z/2020-07-01T23:00:00.000Z"),
+        "v1",
+        new PartitionHolder<>(new NumberedPartitionChunk<>(
+            0,
+            1,
+            barSegment2
+        ))
+    ));
+    Assert.assertEquals(ImmutableList.of(fooTimelineObjects, barTimelineObjects), multiDataSourceServerLookup);
   }
 }

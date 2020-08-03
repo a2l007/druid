@@ -174,21 +174,21 @@ public class TimeSeriesUnionQueryRunnerTest
     );
 
     QueryRunner mergingrunner = toolChest.mergeResults(
-            new QueryRunner<Result<TimeseriesResultValue>>()
-            {
-              @Override
-              public Sequence<Result<TimeseriesResultValue>> run(
-                  QueryPlus<Result<TimeseriesResultValue>> queryPlus,
-                  ResponseContext responseContext
-              )
-              {
-                if (queryPlus.getQuery().getDataSource().equals(new TableDataSource("ds1"))) {
-                  return Sequences.simple(descending ? Lists.reverse(ds1) : ds1);
-                } else {
-                  return Sequences.simple(descending ? Lists.reverse(ds2) : ds2);
-                }
-              }
+        new QueryRunner<Result<TimeseriesResultValue>>()
+        {
+          @Override
+          public Sequence<Result<TimeseriesResultValue>> run(
+              QueryPlus<Result<TimeseriesResultValue>> queryPlus,
+              ResponseContext responseContext
+          )
+          {
+            if (queryPlus.getQuery().getDataSource().equals(new TableDataSource("ds1"))) {
+              return Sequences.simple(descending ? Lists.reverse(ds1) : ds1);
+            } else {
+              return Sequences.simple(descending ? Lists.reverse(ds2) : ds2);
             }
+          }
+        }
     );
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(

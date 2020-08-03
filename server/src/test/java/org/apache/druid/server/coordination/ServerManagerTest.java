@@ -593,7 +593,7 @@ public class ServerManagerTest
   {
     Future future = assertQueryable(
         Granularities.DAY,
-        new UnionDataSource(ImmutableList.of(new TableDataSource("test"),new TableDataSource("test2"))),
+        new UnionDataSource(ImmutableList.of(new TableDataSource("test"), new TableDataSource("test2"))),
         Intervals.of("P1d/2011-04-01"),
         ImmutableList.of(
             new Pair<>("1", Intervals.of("P1d/2011-04-01")), new Pair<>("1", Intervals.of("P1d/2011-04-01")))
@@ -602,7 +602,7 @@ public class ServerManagerTest
 
     future = assertQueryable(
         Granularities.DAY,
-        new UnionDataSource(ImmutableList.of(new TableDataSource("test"),new TableDataSource("test2"))),
+        new UnionDataSource(ImmutableList.of(new TableDataSource("test"), new TableDataSource("test2"))),
         Intervals.of("P1d/2011-04-04"),
         ImmutableList.of(
             new Pair<String, Interval>("1", Intervals.of("P1d/2011-04-04"))

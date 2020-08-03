@@ -25,7 +25,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import org.apache.druid.client.CachingClusteredClient;
@@ -529,7 +528,7 @@ public class CachingClusteredClientBenchmark
     }
 
     @Override
-    public Optional<?  extends TimelineLookup<String, ServerSelector>> getTimeline(
+    public Optional<? extends TimelineLookup<String, ServerSelector>> getTimeline(
         DataSourceAnalysis analysis
     )
     {
