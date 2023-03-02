@@ -21,6 +21,7 @@ package org.apache.druid.indexing.common.task;
 
 import com.google.common.base.Optional;
 import org.apache.druid.data.input.HandlingInputRowIterator;
+import org.apache.druid.data.input.InputChooser;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputSource;
@@ -64,6 +65,7 @@ public class InputSourceProcessor
       PartitionsSpec partitionsSpec,
       InputSource inputSource,
       @Nullable InputFormat inputFormat,
+      InputChooser inputChooser,
       File tmpDir,
       SequenceNameFunction sequenceNameFunction,
       IndexTaskInputRowIteratorBuilder inputRowIteratorBuilder,
@@ -86,7 +88,9 @@ public class InputSourceProcessor
             inputFormat,
             AbstractBatchIndexTask.defaultRowFilter(granularitySpec),
             buildSegmentsMeters,
-            parseExceptionHandler
+            parseExceptionHandler,
+            inputChooser
+
         );
         final HandlingInputRowIterator iterator = inputRowIteratorBuilder
             .delegate(inputRowIterator)

@@ -35,10 +35,12 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.druid.data.input.FiniteFirehoseFactory;
 import org.apache.druid.data.input.FirehoseFactory;
 import org.apache.druid.data.input.FirehoseFactoryToInputSourceAdaptor;
+import org.apache.druid.data.input.InputChooser;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.Rows;
+import org.apache.druid.data.input.impl.DefaultInputChooser;
 import org.apache.druid.data.input.impl.InputRowParser;
 import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.indexer.Checks;
@@ -490,6 +492,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
           ingestionSchema.getDataSchema().getParser()
       );
 
+      final InputChooser inputChooser = ingestionSchema.getIOConfig().getInputChooser();
       final File tmpDir = toolbox.getIndexingTmpDir();
 
       ingestionState = IngestionState.DETERMINE_PARTITIONS;
@@ -500,6 +503,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       final PartitionAnalysis partitionAnalysis = determineShardSpecs(
           toolbox,
           inputSource,
+          inputChooser,
           tmpDir,
           partitionsSpec
       );
@@ -527,6 +531,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
           toolbox,
           dataSchema,
           inputSource,
+          inputChooser,
           tmpDir,
           partitionAnalysis
       );
@@ -620,6 +625,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
   private PartitionAnalysis determineShardSpecs(
       final TaskToolbox toolbox,
       final InputSource inputSource,
+      final InputChooser inputChooser,
       final File tmpDir,
       @Nonnull final PartitionsSpec partitionsSpec
   ) throws IOException
@@ -655,6 +661,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
           jsonMapper,
           ingestionSchema,
           inputSource,
+          inputChooser,
           tmpDir,
           granularitySpec,
           partitionsSpec,
@@ -679,6 +686,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       ObjectMapper jsonMapper,
       IndexIngestionSpec ingestionSchema,
       InputSource inputSource,
+      InputChooser inputChooser,
       File tmpDir,
       GranularitySpec granularitySpec,
       @Nonnull PartitionsSpec partitionsSpec,
@@ -692,6 +700,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         jsonMapper,
         ingestionSchema,
         inputSource,
+        inputChooser,
         tmpDir,
         granularitySpec,
         partitionsSpec,
@@ -743,6 +752,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       ObjectMapper jsonMapper,
       IndexIngestionSpec ingestionSchema,
       InputSource inputSource,
+      InputChooser inputChooser,
       File tmpDir,
       GranularitySpec granularitySpec,
       @Nonnull PartitionsSpec partitionsSpec,
@@ -771,7 +781,8 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         inputSource.needsFormat() ? getInputFormat(ingestionSchema) : null,
         rowFilter,
         determinePartitionsMeters,
-        determinePartitionsParseExceptionHandler
+        determinePartitionsParseExceptionHandler,
+        inputChooser
     )) {
       while (inputRowIterator.hasNext()) {
         final InputRow inputRow = inputRowIterator.next();
@@ -842,6 +853,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       final TaskToolbox toolbox,
       final DataSchema dataSchema,
       final InputSource inputSource,
+      final InputChooser inputChooser,
       final File tmpDir,
       final PartitionAnalysis partitionAnalysis
   ) throws IOException, InterruptedException
@@ -925,6 +937,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
           partitionsSpec,
           inputSource,
           inputSource.needsFormat() ? getInputFormat(ingestionSchema) : null,
+          inputChooser,
           tmpDir,
           sequenceNameFunction,
           new DefaultIndexTaskInputRowIteratorBuilder(),
@@ -1135,6 +1148,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
     private final FirehoseFactory firehoseFactory;
     private final InputSource inputSource;
     private final InputFormat inputFormat;
+    private final InputChooser inputChooser;
     private boolean appendToExisting;
     private boolean dropExisting;
 
@@ -1143,6 +1157,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         @Deprecated @JsonProperty("firehose") @Nullable FirehoseFactory firehoseFactory,
         @JsonProperty("inputSource") @Nullable InputSource inputSource,
         @JsonProperty("inputFormat") @Nullable InputFormat inputFormat,
+        @JsonProperty("inputChooser") @Nullable InputChooser inputChooser,
         @JsonProperty("appendToExisting") @Nullable Boolean appendToExisting,
         @JsonProperty("dropExisting") @Nullable Boolean dropExisting
     )
@@ -1156,6 +1171,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       this.firehoseFactory = firehoseFactory;
       this.inputSource = inputSource;
       this.inputFormat = inputFormat;
+      this.inputChooser = inputChooser;
       this.appendToExisting = appendToExisting == null ? BatchIOConfig.DEFAULT_APPEND_EXISTING : appendToExisting;
       this.dropExisting = dropExisting == null ? BatchIOConfig.DEFAULT_DROP_EXISTING : dropExisting;
     }
@@ -1164,7 +1180,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
     @Deprecated
     public IndexIOConfig(FirehoseFactory firehoseFactory, @Nullable Boolean appendToExisting, @Nullable Boolean dropExisting)
     {
-      this(firehoseFactory, null, null, appendToExisting, dropExisting);
+      this(firehoseFactory, null, null, null, appendToExisting, dropExisting);
     }
 
     @Nullable
@@ -1196,6 +1212,15 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       return inputFormat;
     }
 
+
+    @Override
+    @Nullable
+    @JsonProperty
+    public InputChooser getInputChooser()
+    {
+      return inputChooser;
+    }
+
     public InputSource getNonNullInputSource(@Nullable InputRowParser inputRowParser)
     {
       if (inputSource == null) {
@@ -1211,6 +1236,14 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
     public InputFormat getNonNullInputFormat()
     {
       return Preconditions.checkNotNull(inputFormat, "inputFormat");
+    }
+
+    public InputChooser getNonNullInputChooser()
+    {
+      if (inputChooser == null) {
+        return new DefaultInputChooser();
+      }
+      return inputChooser;
     }
 
     @Override

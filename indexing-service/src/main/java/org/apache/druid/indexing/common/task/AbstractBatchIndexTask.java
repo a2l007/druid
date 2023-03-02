@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import org.apache.druid.client.indexing.ClientCompactionTaskTransformSpec;
 import org.apache.druid.data.input.FirehoseFactory;
+import org.apache.druid.data.input.InputChooser;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputSource;
@@ -206,9 +207,14 @@ public abstract class AbstractBatchIndexTask extends AbstractTask
       @Nullable InputFormat inputFormat,
       Predicate<InputRow> rowFilter,
       RowIngestionMeters ingestionMeters,
-      ParseExceptionHandler parseExceptionHandler
+      ParseExceptionHandler parseExceptionHandler,
+      InputChooser inputChooser
   ) throws IOException
   {
+    // Read files from the chooser and append it to the existing inputsource
+    List<String> chosenFiles = inputChooser.chooseFiles();
+    inputSource.appendChosenPaths(chosenFiles);
+
     final InputSourceReader inputSourceReader = dataSchema.getTransformSpec().decorate(
         inputSource.reader(
             InputRowSchemas.fromDataSchema(dataSchema),

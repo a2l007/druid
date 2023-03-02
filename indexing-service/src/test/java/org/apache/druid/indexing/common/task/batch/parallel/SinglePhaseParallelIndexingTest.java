@@ -357,6 +357,7 @@ public class SinglePhaseParallelIndexingTest extends AbstractParallelIndexSuperv
                 null,
                 new SettableSplittableLocalInputSource(inputDir, VALID_INPUT_SOURCE_FILTER, true),
                 DEFAULT_INPUT_FORMAT,
+                null,
                 false,
                 null
             ),
@@ -409,6 +410,7 @@ public class SinglePhaseParallelIndexingTest extends AbstractParallelIndexSuperv
                 null,
                 new SettableSplittableLocalInputSource(inputDir, VALID_INPUT_SOURCE_FILTER, true),
                 DEFAULT_INPUT_FORMAT,
+                null,
                 false,
                 null
             ),
@@ -846,6 +848,7 @@ public class SinglePhaseParallelIndexingTest extends AbstractParallelIndexSuperv
                     null,
                     null
                 ),
+                null,
                 false,
                 null
             ),
@@ -919,6 +922,7 @@ public class SinglePhaseParallelIndexingTest extends AbstractParallelIndexSuperv
               null,
               new SettableSplittableLocalInputSource(inputDir, inputSourceFilter, splittableInputSource),
               DEFAULT_INPUT_FORMAT,
+              null,
               appendToExisting,
               null
           ),

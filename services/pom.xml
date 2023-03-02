@@ -66,6 +66,11 @@
         </dependency>
         <dependency>
             <groupId>org.apache.druid</groupId>
+            <artifactId>web-console</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.druid</groupId>
             <artifactId>druid-sql</artifactId>
             <version>${project.parent.version}</version>
         </dependency>

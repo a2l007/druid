@@ -29,6 +29,7 @@ import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.druid.java.util.common.RetryUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -173,6 +174,19 @@ public class DruidKubernetesPeonClient implements KubernetesPeonClient
         }
         return Optional.of(new ReaderInputStream(reader, StandardCharsets.UTF_8));
       });
+      List<Integer> test = new ArrayList<>(2);
+      InputStream stream = new InputStream()
+      {
+        @Override
+        public int read() throws IOException
+        {
+          return 0;
+        }
+        @Override
+        public void close() {
+          test.add(34);
+        }
+      }
     }
     catch (Exception e) {
       log.error("Error streaming logs from task: %s", taskId);

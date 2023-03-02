@@ -47,6 +47,7 @@ import org.apache.druid.utils.Streams;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.net.URI;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -262,5 +263,12 @@ public class LocalInputSource extends AbstractInputSource implements SplittableI
            "\", filter=" + filter +
            ", files=" + files +
            "}";
+  }
+
+  @Override
+  public void appendChosenPaths(List<String> chosenPaths)
+  {
+    files.addAll(chosenPaths.stream().map(chosenPath -> new File(URI.create(chosenPath))).collect(Collectors.toList()));
+
   }
 }

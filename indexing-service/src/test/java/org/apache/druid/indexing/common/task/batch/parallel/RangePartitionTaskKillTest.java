@@ -326,6 +326,7 @@ public class RangePartitionTaskKillTest extends AbstractMultiPhaseParallelIndexi
         null,
         new LocalInputSource(inputDir, filter),
         inputFormat,
+        null,
         appendToExisting,
         null
     );

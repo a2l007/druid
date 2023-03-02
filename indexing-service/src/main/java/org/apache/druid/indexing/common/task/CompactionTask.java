@@ -725,6 +725,7 @@ public class CompactionTask extends AbstractBatchIndexTask
             toolbox.getConfig()
         ),
         null,
+        null,
         false,
         dropExisting
     );

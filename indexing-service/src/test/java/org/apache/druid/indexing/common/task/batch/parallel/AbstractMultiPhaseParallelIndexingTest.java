@@ -225,6 +225,7 @@ abstract class AbstractMultiPhaseParallelIndexingTest extends AbstractParallelIn
           null,
           new LocalInputSource(inputDirectory, filter),
           inputFormat,
+          null,
           appendToExisting,
           dropExisting
       );

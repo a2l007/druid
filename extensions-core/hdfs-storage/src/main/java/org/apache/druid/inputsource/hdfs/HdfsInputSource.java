@@ -230,6 +230,12 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
     return true;
   }
 
+  @Override
+  public void appendChosenPaths(List<String> chosenPaths)
+  {
+    inputPaths.addAll(chosenPaths);
+  }
+
   private void cachePathsIfNeeded() throws IOException
   {
     if (cachedPaths == null) {

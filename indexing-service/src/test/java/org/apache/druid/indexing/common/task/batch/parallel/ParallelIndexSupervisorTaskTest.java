@@ -228,6 +228,7 @@ public class ParallelIndexSupervisorTaskTest
           null,
           new InlineInputSource("test"),
           new JsonInputFormat(null, null, null, null, null),
+          null,
           appendToExisting,
           null
       );

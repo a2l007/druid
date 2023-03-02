@@ -83,6 +83,7 @@ public class ParallelIndexSupervisorTaskKillTest extends AbstractParallelIndexSu
             // Sub tasks would run forever
             new TestInputSource(Pair.of(new TestInput(Integer.MAX_VALUE, TaskState.SUCCESS), 4)),
             new NoopInputFormat(),
+            null,
             false,
             null
         )
@@ -116,6 +117,7 @@ public class ParallelIndexSupervisorTaskKillTest extends AbstractParallelIndexSu
                 Pair.of(new TestInput(Integer.MAX_VALUE, TaskState.FAILED), 3)
             ),
             new NoopInputFormat(),
+            null,
             false,
             null
         )
@@ -331,6 +333,7 @@ public class ParallelIndexSupervisorTaskKillTest extends AbstractParallelIndexSu
                   null,
                   baseInputSource.withSplit(split),
                   getIngestionSchema().getIOConfig().getInputFormat(),
+                  getIngestionSchema().getIOConfig().getInputChooser(),
                   getIngestionSchema().getIOConfig().isAppendToExisting(),
                   getIngestionSchema().getIOConfig().isDropExisting()
               ),

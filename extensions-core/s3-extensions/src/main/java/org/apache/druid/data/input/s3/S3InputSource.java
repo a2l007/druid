@@ -352,6 +352,11 @@ public class S3InputSource extends CloudObjectInputSource
   }
 
   @Override
+  public void appendChosenPaths(List<String> chosenPaths)
+  {
+    getObjects().addAll(chosenPaths.stream().map(path -> new CloudObjectLocation(URI.create(path))).collect(Collectors.toList()));
+  }
+  @Override
   public int hashCode()
   {
     return Objects.hash(super.hashCode(), s3InputSourceConfig);

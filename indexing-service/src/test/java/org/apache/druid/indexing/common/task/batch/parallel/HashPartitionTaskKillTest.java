@@ -249,6 +249,7 @@ public class HashPartitionTaskKillTest extends AbstractMultiPhaseParallelIndexin
           null,
           new LocalInputSource(inputDir, filter),
           inputFormat,
+          null,
           appendToExisting,
           null
       );

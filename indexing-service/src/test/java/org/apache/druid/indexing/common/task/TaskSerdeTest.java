@@ -89,7 +89,7 @@ public class TaskSerdeTest
   public void testIndexTaskIOConfigDefaults() throws Exception
   {
     final IndexTask.IndexIOConfig ioConfig = jsonMapper.readValue(
-        "{\"type\":\"index\",\"inputSource\":{\"type\":\"noop\"},\"inputFormat\":{\"type\":\"noop\"}}",
+        "{\"type\":\"index\",\"inputSource\":{\"type\":\"noop\"},\"inputFormat\":{\"type\":\"noop\"}, \"inputChooser\":{\"type\":\"default\"}}",
         IndexTask.IndexIOConfig.class
     );
 
@@ -246,7 +246,7 @@ public class TaskSerdeTest
                 ),
                 null
             ),
-            new IndexIOConfig(null, new LocalInputSource(new File("lol"), "rofl"), new NoopInputFormat(), true, false),
+            new IndexIOConfig(null, new LocalInputSource(new File("lol"), "rofl"), new NoopInputFormat(), null, true, false),
             new IndexTuningConfig(
                 null,
                 null,
@@ -332,7 +332,7 @@ public class TaskSerdeTest
                 ),
                 null
             ),
-            new IndexIOConfig(null, new LocalInputSource(new File("lol"), "rofl"), new NoopInputFormat(), true, false),
+            new IndexIOConfig(null, new LocalInputSource(new File("lol"), "rofl"), new NoopInputFormat(), null, true, false),
             new IndexTuningConfig(
                 null,
                 null,

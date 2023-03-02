@@ -19,12 +19,14 @@
 
 package org.apache.druid.k8s.overlord;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import org.joda.time.Period;
 
 import javax.validation.constraints.NotNull;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -56,21 +58,21 @@ public class KubernetesTaskRunnerConfig
   public boolean disableClientProxy;
 
   @JsonProperty
-  @NotNull
+  @JsonIgnore
   public Period maxTaskDuration = new Period("PT4H");
 
   @JsonProperty
-  @NotNull
+  @JsonIgnore
   // how long to wait for the jobs to be cleaned up.
   public Period taskCleanupDelay = new Period("P2D");
 
   @JsonProperty
-  @NotNull
+  @JsonIgnore
   // interval for k8s job cleanup to run
   public Period taskCleanupInterval = new Period("PT10m");
 
   @JsonProperty
-  @NotNull
+  @JsonIgnore
   // how long to wait for the peon k8s job to launch
   public Period k8sjobLaunchTimeout = new Period("PT1H");
 
@@ -101,6 +103,13 @@ public class KubernetesTaskRunnerConfig
       "java.io.tmpdir",
       "hadoop"
   );
+
+  @JsonProperty
+  @NotNull
+  // any properties you wish to add/override for the peon task,
+  // since the peon inherits the properties from the overlord, you might wish to
+  // override the list of metrics monitors for example.
+  public LinkedHashMap<String, String> peonOverrides = new LinkedHashMap<>();
 
   public static long toMilliseconds(Period period)
   {
