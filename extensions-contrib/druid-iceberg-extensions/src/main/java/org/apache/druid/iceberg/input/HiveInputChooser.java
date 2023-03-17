@@ -207,6 +207,7 @@ public class HiveInputChooser implements InputChooser
   @Override
   public List<String> chooseFiles()
   {
+    //TODO what should choosefiles do
     setupHdfsInputSource();
     return snapshotDataFiles;
   }

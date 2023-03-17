@@ -52,5 +52,6 @@ public class IcebergDruidModule implements DruidModule
     binder.bind(Configuration.class).annotatedWith(HiveConf.class).toInstance(conf);
 
   }
+
 }
 
