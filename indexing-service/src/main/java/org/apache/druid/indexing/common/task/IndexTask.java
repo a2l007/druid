@@ -32,7 +32,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ListenableFuture;
-import org.apache.druid.data.input.FiniteFirehoseFactory;
 import org.apache.druid.data.input.FirehoseFactory;
 import org.apache.druid.data.input.FirehoseFactoryToInputSourceAdaptor;
 import org.apache.druid.data.input.InputChooser;
@@ -271,8 +270,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
     return findInputSegments(
         getDataSource(),
         taskActionClient,
-        intervals,
-        ingestionSchema.ioConfig.firehoseFactory
+        intervals
     );
   }
 
@@ -488,9 +486,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
                                                         .inputIntervals()
                                                         .isEmpty();
 
-      final InputSource inputSource = ingestionSchema.getIOConfig().getNonNullInputSource(
-          ingestionSchema.getDataSchema().getParser()
-      );
+      final InputSource inputSource = ingestionSchema.getIOConfig().getInputSource();
 
       final InputChooser inputChooser = ingestionSchema.getIOConfig().getInputChooser();
       final File tmpDir = toolbox.getIndexingTmpDir();
@@ -965,13 +961,12 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       Set<DataSegment> tombStones = Collections.emptySet();
       if (getIngestionMode() == IngestionMode.REPLACE) {
         // check whether to generate tombstones...
-        TombstoneHelper tombstoneHelper = new TombstoneHelper(
-            pushed.getSegments(),
-            ingestionSchema.getDataSchema(),
-            toolbox.getTaskActionClient()
-        );
+        TombstoneHelper tombstoneHelper = new TombstoneHelper(toolbox.getTaskActionClient());
 
-        List<Interval> tombstoneIntervals = tombstoneHelper.computeTombstoneIntervals();
+        List<Interval> tombstoneIntervals = tombstoneHelper.computeTombstoneIntervals(
+            pushed.getSegments(),
+            ingestionSchema.getDataSchema()
+        );
         // now find the versions for the tombstone intervals
         Map<Interval, SegmentIdWithShardSpec> tombstonesAndVersions = new HashMap<>();
         for (Interval interval : tombstoneIntervals) {
@@ -983,7 +978,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
           tombstonesAndVersions.put(interval, segmentIdWithShardSpec);
         }
 
-        tombStones = tombstoneHelper.computeTombstones(tombstonesAndVersions);
+        tombStones = tombstoneHelper.computeTombstones(ingestionSchema.getDataSchema(), tombstonesAndVersions);
 
 
         log.debugSegments(tombStones, "To publish tombstones");
@@ -1212,7 +1207,6 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       return inputFormat;
     }
 
-
     @Override
     @Nullable
     @JsonProperty
@@ -1223,14 +1217,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
 
     public InputSource getNonNullInputSource(@Nullable InputRowParser inputRowParser)
     {
-      if (inputSource == null) {
-        return new FirehoseFactoryToInputSourceAdaptor(
-            (FiniteFirehoseFactory) firehoseFactory,
-            inputRowParser
-        );
-      } else {
-        return inputSource;
-      }
+      return Preconditions.checkNotNull(inputSource, "inputSource");
     }
 
     public InputFormat getNonNullInputFormat()
@@ -1428,7 +1415,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
     )
     {
       this.appendableIndexSpec = appendableIndexSpec == null ? DEFAULT_APPENDABLE_INDEX : appendableIndexSpec;
-      this.maxRowsInMemory = maxRowsInMemory == null ? TuningConfig.DEFAULT_MAX_ROWS_IN_MEMORY : maxRowsInMemory;
+      this.maxRowsInMemory = maxRowsInMemory == null ? TuningConfig.DEFAULT_MAX_ROWS_IN_MEMORY_BATCH : maxRowsInMemory;
       // initializing this to 0, it will be lazily initialized to a value
       // @see #getMaxBytesInMemoryOrDefault()
       this.maxBytesInMemory = maxBytesInMemory == null ? 0 : maxBytesInMemory;

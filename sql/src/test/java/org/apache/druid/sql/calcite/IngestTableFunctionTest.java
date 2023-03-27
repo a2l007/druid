@@ -34,6 +34,7 @@ import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.metadata.DefaultPasswordProvider;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.segment.nested.NestedDataComplexTypeSerde;
 import org.apache.druid.sql.calcite.external.ExternalDataSource;
 import org.apache.druid.sql.calcite.external.Externals;
 import org.apache.druid.sql.calcite.filtration.Filtration;
@@ -101,7 +102,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(httpDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("httpExtern")
@@ -143,7 +144,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(httpDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("httpExtern")
@@ -173,7 +174,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(httpDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("httpExtern")
@@ -200,10 +201,49 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(httpDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("httpExtern")
+        .verify();
+  }
+
+  @Test
+  public void testHttpJson()
+  {
+    final ExternalDataSource httpDataSource = new ExternalDataSource(
+        new HttpInputSource(
+            Collections.singletonList(toURI("http://foo.com/bar.json")),
+            "bob",
+            new DefaultPasswordProvider("secret"),
+            new HttpInputSourceConfig(null)
+        ),
+        new CsvInputFormat(ImmutableList.of("x", "y", "z"), null, false, false, 0),
+        RowSignature.builder()
+                    .add("x", ColumnType.STRING)
+                    .add("y", ColumnType.STRING)
+                    .add("z", NestedDataComplexTypeSerde.TYPE)
+                    .build()
+        );
+    testIngestionQuery()
+        .sql("INSERT INTO dst SELECT *\n" +
+             "FROM TABLE(http(userName => 'bob',\n" +
+            "                 password => 'secret',\n" +
+             "                uris => ARRAY['http://foo.com/bar.json'],\n" +
+             "                format => 'csv'))\n" +
+             "     EXTEND (x VARCHAR, y VARCHAR, z TYPE('COMPLEX<json>'))\n" +
+             "PARTITIONED BY ALL TIME")
+        .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
+        .expectTarget("dst", httpDataSource.getSignature())
+        .expectResources(dataSourceWrite("dst"), Externals.EXTERNAL_RESOURCE_ACTION)
+        .expectQuery(
+            newScanQueryBuilder()
+                .dataSource(httpDataSource)
+                .intervals(querySegmentSpec(Filtration.eternity()))
+                .columns("x", "y", "z")
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .build()
+         )
         .verify();
   }
 
@@ -223,7 +263,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(externalDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("insertFromExternal")
@@ -291,7 +331,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(externalDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("insertFromExternal")
@@ -319,7 +359,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(externalDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("insertFromExternal")
@@ -356,7 +396,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(localDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("localExtern")
@@ -384,7 +424,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(localDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("localExtern")
@@ -412,7 +452,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(localDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("localExtern")
@@ -442,7 +482,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(localDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("localExtern")
@@ -472,7 +512,7 @@ public class IngestTableFunctionTest extends CalciteIngestionDmlTest
                 .dataSource(localDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
-                .context(CalciteInsertDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
          )
         .expectLogicalPlanFrom("localExtern")

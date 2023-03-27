@@ -20,11 +20,8 @@
 package org.apache.druid.indexing.common.task;
 
 import com.google.common.collect.ImmutableMap;
-import org.apache.druid.data.input.impl.DimensionsSpec;
-import org.apache.druid.data.input.impl.NoopFirehoseFactory;
 import org.apache.druid.data.input.impl.NoopInputFormat;
 import org.apache.druid.data.input.impl.NoopInputSource;
-import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.indexing.common.task.IndexTask.IndexIOConfig;
 import org.apache.druid.indexing.common.task.IndexTask.IndexIngestionSpec;
 import org.apache.druid.java.util.common.granularity.Granularities;

@@ -137,7 +137,7 @@ You can retrieve status of a query to see if it is still running, completed succ
 <!--HTTP-->
 
 ```
-GET /druid/indexer/v1/task/<taskId>
+GET /druid/indexer/v1/task/<taskId>/status
 ```
 
 <!--curl-->
@@ -253,7 +253,9 @@ The response shows an example report for a query.
       "status": {
         "status": "SUCCESS",
         "startTime": "2022-09-14T22:12:09.266Z",
-        "durationMs": 28227
+        "durationMs": 28227,
+        "pendingTasks": 0,
+        "runningTasks": 2
       },
       "stages": [
         {
@@ -528,6 +530,12 @@ The response shows an example report for a query.
               "frames": [
                 73
               ]
+            },
+            "segmentGenerationProgress": {
+              "type": "segmentGenerationProgress",
+              "rowsProcessed": 465346,
+              "rowsPersisted": 465346,
+              "rowsMerged": 465346
             }
           }
         }

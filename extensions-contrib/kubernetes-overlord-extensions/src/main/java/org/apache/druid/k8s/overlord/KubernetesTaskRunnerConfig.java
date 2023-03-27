@@ -40,8 +40,21 @@ public class KubernetesTaskRunnerConfig
   @JsonProperty
   public boolean debugJobs = false;
 
+  /**
+   * Deprecated, please specify adapter type runtime property instead
+   *
+   * I.E `druid.indexer.runner.k8s.adapter.type: overlordMultiContainer`
+   */
+  @Deprecated
   @JsonProperty
   public boolean sidecarSupport = false;
+
+  @JsonProperty
+  // if this is not set, then the first container in your pod spec is assumed to be the overlord container.
+  // usually this is fine, but when you are dynamically adding sidecars like istio, the service mesh could
+  // in fact place the istio-proxy container as the first container.  Thus you would specify this value to
+  // the name of your primary container.  eg) druid-overlord
+  public String primaryContainerName = null;
 
   @JsonProperty
   // for multi-container jobs, we need this image to shut down sidecars after the main container

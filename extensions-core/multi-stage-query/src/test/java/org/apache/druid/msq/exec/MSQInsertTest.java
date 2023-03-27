@@ -30,7 +30,7 @@ import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.msq.indexing.error.ColumnNameRestrictedFault;
 import org.apache.druid.msq.indexing.error.RowTooLargeFault;
-import org.apache.druid.msq.test.CounterSnapshotBuilder;
+import org.apache.druid.msq.test.CounterSnapshotMatcher;
 import org.apache.druid.msq.test.MSQTestBase;
 import org.apache.druid.msq.test.MSQTestFileUtils;
 import org.apache.druid.msq.util.MultiStageQueryContext;
@@ -87,6 +87,10 @@ public class MSQInsertTest extends MSQTestBase
   @Test
   public void testInsertOnFoo1()
   {
+    List<Object[]> expectedRows = expectedFooRows();
+    int expectedCounterRows = expectedRows.size();
+    long[] expectedArray = createExpectedFrameArray(expectedCounterRows, 1);
+
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("dim1", ColumnType.STRING)
@@ -98,7 +102,37 @@ public class MSQInsertTest extends MSQTestBase
                      .setQueryContext(context)
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(expectedFooSegments())
-                     .setExpectedResultRows(expectedFooRows())
+                     .setExpectedResultRows(expectedRows)
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().totalFiles(1),
+                         0, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         0, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         1, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedArray).frames(expectedArray),
+                         1, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedArray).frames(expectedArray),
+                         2, 0, "input0"
+                     )
+                     .setExpectedSegmentGenerationProgressCountersForStageWorker(
+                         CounterSnapshotMatcher
+                             .with().segmentRowsProcessed(Arrays.stream(expectedArray).sum()),
+                         2, 0
+                     )
                      .verifyResults();
 
   }
@@ -106,7 +140,7 @@ public class MSQInsertTest extends MSQTestBase
   @Test
   public void testInsertOnExternalDataSource() throws IOException
   {
-    final File toRead = MSQTestFileUtils.getResourceAsTemporaryFile(this, "/wikipedia-sampled.json");
+    final File toRead = MSQTestFileUtils.getResourceAsTemporaryFile(temporaryFolder, this, "/wikipedia-sampled.json");
     final String toReadFileNameAsJson = queryFramework().queryJsonMapper().writeValueAsString(toRead.getAbsolutePath());
 
     RowSignature rowSignature = RowSignature.builder()
@@ -135,15 +169,138 @@ public class MSQInsertTest extends MSQTestBase
                      )))
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
                      .setExpectedCountersForStageWorkerChannel(
-                         CounterSnapshotBuilder
-                             .with().rows(20).bytes(toRead.length()).files(1).totalFiles(1)
-                             .buildChannelCounter(),
+                         CounterSnapshotMatcher
+                             .with().rows(20).bytes(toRead.length()).files(1).totalFiles(1),
                          0, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(1).frames(1),
+                         0, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(1).frames(1),
+                         1, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(1).frames(1),
+                         1, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(1).frames(1),
+                         2, 0, "input0"
+                     )
+                     .setExpectedSegmentGenerationProgressCountersForStageWorker(
+                         CounterSnapshotMatcher
+                             .with().segmentRowsProcessed(1),
+                         2, 0
                      )
                      .verifyResults();
 
   }
 
+  @Test
+  public void testInsertOnFoo1WithGroupByLimitWithoutClusterBy()
+  {
+    List<Object[]> expectedRows = expectedFooRows();
+    int expectedCounterRows = expectedRows.size();
+
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("dim1", ColumnType.STRING)
+                                            .add("cnt", ColumnType.LONG).build();
+
+    testIngestQuery().setSql(
+                         "insert into foo1 select  __time, dim1 , count(*) as cnt from foo where dim1 is not null group by 1, 2 limit 10 PARTITIONED by All")
+                     .setExpectedDataSource("foo1")
+                     .setQueryContext(context)
+                     .setExpectedRowSignature(rowSignature)
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo1", Intervals.ETERNITY, "test", 0)))
+                     .setExpectedResultRows(expectedRows)
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().totalFiles(1),
+                         0, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         0, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         1, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         2, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         3, 0, "input0"
+                     )
+
+                     .verifyResults();
+
+  }
+
+  @Test
+  public void testInsertOnFoo1WithGroupByLimitWithClusterBy()
+  {
+    List<Object[]> expectedRows = expectedFooRows();
+    int expectedCounterRows = expectedRows.size();
+
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("dim1", ColumnType.STRING)
+                                            .add("cnt", ColumnType.LONG).build();
+
+    testIngestQuery().setSql(
+                         "insert into foo1 select  __time, dim1 , count(*) as cnt from foo where dim1 is not null group by 1, 2  limit 10 PARTITIONED by All clustered by 2,3")
+                     .setExpectedDataSource("foo1")
+                     .setQueryContext(context)
+                     .setExpectedRowSignature(rowSignature)
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo1", Intervals.ETERNITY, "test", 0)))
+                     .setExpectedResultRows(expectedRows)
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().totalFiles(1),
+                         0, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         0, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         1, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         1, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         2, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         3, 0, "input0"
+                     )
+                     .verifyResults();
+
+  }
   @Test
   public void testInsertOnFoo1WithTimeFunction()
   {
@@ -166,6 +323,10 @@ public class MSQInsertTest extends MSQTestBase
   @Test
   public void testInsertOnFoo1WithTimeFunctionWithSequential()
   {
+    List<Object[]> expectedRows = expectedFooRows();
+    int expectedCounterRows = expectedRows.size();
+    long[] expectedArray = createExpectedFrameArray(expectedCounterRows, 1);
+
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("dim1", ColumnType.STRING)
@@ -185,7 +346,37 @@ public class MSQInsertTest extends MSQTestBase
                      .setExpectedRowSignature(rowSignature)
                      .setQueryContext(MSQInsertTest.this.context)
                      .setExpectedSegment(expectedFooSegments())
-                     .setExpectedResultRows(expectedFooRows())
+                     .setExpectedResultRows(expectedRows)
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().totalFiles(1),
+                         0, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         0, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         1, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedArray).frames(expectedArray),
+                         1, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedArray).frames(expectedArray),
+                         2, 0, "input0"
+                     )
+                     .setExpectedSegmentGenerationProgressCountersForStageWorker(
+                         CounterSnapshotMatcher
+                             .with().segmentRowsProcessed(Arrays.stream(expectedArray).sum()),
+                         2, 0
+                     )
                      .verifyResults();
 
   }
@@ -199,6 +390,40 @@ public class MSQInsertTest extends MSQTestBase
 
     testIngestQuery().setSql(
                          "INSERT INTO foo1 SELECT dim3 FROM foo WHERE dim3 IS NOT NULL PARTITIONED BY ALL TIME")
+                     .setExpectedDataSource("foo1")
+                     .setExpectedRowSignature(rowSignature)
+                     .setQueryContext(context)
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo1", Intervals.ETERNITY, "test", 0)))
+                     .setExpectedResultRows(expectedMultiValueFooRows())
+                     .verifyResults();
+  }
+
+  @Test
+  public void testInsertOnFoo1WithLimitWithoutClusterBy()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("dim3", ColumnType.STRING).build();
+
+    testIngestQuery().setSql(
+                         "INSERT INTO foo1 SELECT dim3 FROM foo WHERE dim3 IS NOT NULL limit 10 PARTITIONED BY ALL TIME")
+                     .setExpectedDataSource("foo1")
+                     .setExpectedRowSignature(rowSignature)
+                     .setQueryContext(context)
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo1", Intervals.ETERNITY, "test", 0)))
+                     .setExpectedResultRows(expectedMultiValueFooRows())
+                     .verifyResults();
+  }
+
+  @Test
+  public void testInsertOnFoo1WithLimitWithClusterBy()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("dim3", ColumnType.STRING).build();
+
+    testIngestQuery().setSql(
+                         "INSERT INTO foo1 SELECT dim3 FROM foo WHERE dim3 IS NOT NULL limit 10 PARTITIONED BY ALL TIME clustered by dim3")
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
                      .setQueryContext(context)
@@ -284,6 +509,10 @@ public class MSQInsertTest extends MSQTestBase
   @Test
   public void testRollUpOnFoo1UpOnFoo1()
   {
+    List<Object[]> expectedRows = expectedFooRows();
+    int expectedCounterRows = expectedRows.size();
+    long[] expectedArray = createExpectedFrameArray(expectedCounterRows, 1);
+
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("dim1", ColumnType.STRING)
@@ -299,7 +528,37 @@ public class MSQInsertTest extends MSQTestBase
                      .addExpectedAggregatorFactory(new LongSumAggregatorFactory("cnt", "cnt"))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(expectedFooSegments())
-                     .setExpectedResultRows(expectedFooRows())
+                     .setExpectedResultRows(expectedRows)
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().totalFiles(1),
+                         0, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         0, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         1, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedArray).frames(expectedArray),
+                         1, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedArray).frames(expectedArray),
+                         2, 0, "input0"
+                     )
+                     .setExpectedSegmentGenerationProgressCountersForStageWorker(
+                         CounterSnapshotMatcher
+                             .with().segmentRowsProcessed(Arrays.stream(expectedArray).sum()),
+                         2, 0
+                     )
                      .verifyResults();
 
   }
@@ -307,6 +566,10 @@ public class MSQInsertTest extends MSQTestBase
   @Test
   public void testRollUpOnFoo1WithTimeFunction()
   {
+    List<Object[]> expectedRows = expectedFooRows();
+    int expectedCounterRows = expectedRows.size();
+    long[] expectedArray = createExpectedFrameArray(expectedCounterRows, 1);
+
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("dim1", ColumnType.STRING)
@@ -322,7 +585,37 @@ public class MSQInsertTest extends MSQTestBase
                      .addExpectedAggregatorFactory(new LongSumAggregatorFactory("cnt", "cnt"))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(expectedFooSegments())
-                     .setExpectedResultRows(expectedFooRows())
+                     .setExpectedResultRows(expectedRows)
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().totalFiles(1),
+                         0, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         0, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedCounterRows).frames(1),
+                         1, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedArray).frames(expectedArray),
+                         1, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(expectedArray).frames(expectedArray),
+                         2, 0, "input0"
+                     )
+                     .setExpectedSegmentGenerationProgressCountersForStageWorker(
+                         CounterSnapshotMatcher
+                             .with().segmentRowsProcessed(Arrays.stream(expectedArray).sum()),
+                         2, 0
+                     )
                      .verifyResults();
 
   }
@@ -379,7 +672,7 @@ public class MSQInsertTest extends MSQTestBase
   @Test
   public void testRollUpOnExternalDataSource() throws IOException
   {
-    final File toRead = MSQTestFileUtils.getResourceAsTemporaryFile(this, "/wikipedia-sampled.json");
+    final File toRead = MSQTestFileUtils.getResourceAsTemporaryFile(temporaryFolder, this, "/wikipedia-sampled.json");
     final String toReadFileNameAsJson = queryFramework().queryJsonMapper().writeValueAsString(toRead.getAbsolutePath());
 
     RowSignature rowSignature = RowSignature.builder()
@@ -410,13 +703,43 @@ public class MSQInsertTest extends MSQTestBase
                          0
                      )))
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(20).bytes(toRead.length()).files(1).totalFiles(1),
+                         0, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(1).frames(1),
+                         0, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(1).frames(1),
+                         1, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(1).frames(1),
+                         1, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(1).frames(1),
+                         2, 0, "input0"
+                     )
+                     .setExpectedSegmentGenerationProgressCountersForStageWorker(
+                         CounterSnapshotMatcher
+                             .with().segmentRowsProcessed(1),
+                         2, 0
+                     )
                      .verifyResults();
   }
 
   @Test()
   public void testRollUpOnExternalDataSourceWithCompositeKey() throws IOException
   {
-    final File toRead = MSQTestFileUtils.getResourceAsTemporaryFile(this, "/wikipedia-sampled.json");
+    final File toRead = MSQTestFileUtils.getResourceAsTemporaryFile(temporaryFolder, this, "/wikipedia-sampled.json");
     final String toReadFileNameAsJson = queryFramework().queryJsonMapper().writeValueAsString(toRead.getAbsolutePath());
 
     RowSignature rowSignature = RowSignature.builder()
@@ -455,6 +778,36 @@ public class MSQInsertTest extends MSQTestBase
                          new Object[]{1466985600000L, "Wikipedia", 1L},
                          new Object[]{1466985600000L, "Википедия", 1L}
                      ))
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(20).bytes(toRead.length()).files(1).totalFiles(1),
+                         0, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(6).frames(1),
+                         0, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(6).frames(1),
+                         1, 0, "input0"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(6).frames(1),
+                         1, 0, "shuffle"
+                     )
+                     .setExpectedCountersForStageWorkerChannel(
+                         CounterSnapshotMatcher
+                             .with().rows(6).frames(1),
+                         2, 0, "input0"
+                     )
+                     .setExpectedSegmentGenerationProgressCountersForStageWorker(
+                         CounterSnapshotMatcher
+                             .with().segmentRowsProcessed(6),
+                         2, 0
+                     )
                      .verifyResults();
 
   }
@@ -552,7 +905,7 @@ public class MSQInsertTest extends MSQTestBase
   @Test
   public void testInsertWithTooLargeRowShouldThrowException() throws IOException
   {
-    final File toRead = MSQTestFileUtils.getResourceAsTemporaryFile(this, "/wikipedia-sampled.json");
+    final File toRead = MSQTestFileUtils.getResourceAsTemporaryFile(temporaryFolder, this, "/wikipedia-sampled.json");
     final String toReadFileNameAsJson = queryFramework().queryJsonMapper().writeValueAsString(toRead.getAbsolutePath());
 
     Mockito.doReturn(500).when(workerMemoryParameters).getLargeFrameSize();

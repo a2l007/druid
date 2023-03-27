@@ -45,8 +45,6 @@ import org.apache.druid.indexing.common.task.IndexTask.IndexIOConfig;
 import org.apache.druid.indexing.common.task.IndexTask.IndexTuningConfig;
 import org.apache.druid.indexing.common.task.batch.MaxAllowedLocksExceededException;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
-import org.apache.druid.indexing.firehose.IngestSegmentFirehoseFactory;
-import org.apache.druid.indexing.firehose.WindowedSegmentId;
 import org.apache.druid.indexing.input.InputRowSchemas;
 import org.apache.druid.indexing.overlord.Segments;
 import org.apache.druid.java.util.common.IAE;
@@ -61,6 +59,7 @@ import org.apache.druid.java.util.common.granularity.GranularityType;
 import org.apache.druid.java.util.common.granularity.IntervalsByGranularity;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
+import org.apache.druid.query.DruidMetrics;
 import org.apache.druid.query.SegmentDescriptor;
 import org.apache.druid.segment.handoff.SegmentHandoffNotifier;
 import org.apache.druid.segment.incremental.ParseExceptionHandler;
@@ -85,7 +84,6 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -575,13 +573,9 @@ public abstract class AbstractBatchIndexTask extends AbstractTask
   }
 
   /**
-   * If the given firehoseFactory is {@link IngestSegmentFirehoseFactory}, then it finds the segments to lock
-   * from the firehoseFactory. This is because those segments will be read by this task no matter what segments would be
-   * filtered by intervalsToRead, so they need to be locked.
    * <p>
-   * However, firehoseFactory is not IngestSegmentFirehoseFactory, it means this task will overwrite some segments
-   * with data read from some input source outside of Druid. As a result, only the segments falling in intervalsToRead
-   * should be locked.
+   * This task will overwrite some segments with data read from input source outside of Druid.
+   * As a result, only the segments falling in intervalsToRead should be locked.
    * <p>
    * The order of segments within the returned list is unspecified, but each segment is guaranteed to appear in the list
    * only once.
@@ -589,48 +583,14 @@ public abstract class AbstractBatchIndexTask extends AbstractTask
   protected static List<DataSegment> findInputSegments(
       String dataSource,
       TaskActionClient actionClient,
-      List<Interval> intervalsToRead,
-      FirehoseFactory firehoseFactory
+      List<Interval> intervalsToRead
   ) throws IOException
   {
-    if (firehoseFactory instanceof IngestSegmentFirehoseFactory) {
-      // intervalsToRead is ignored here.
-      final List<WindowedSegmentId> inputSegments = ((IngestSegmentFirehoseFactory) firehoseFactory).getSegments();
-      if (inputSegments == null) {
-        final Interval inputInterval = Preconditions.checkNotNull(
-            ((IngestSegmentFirehoseFactory) firehoseFactory).getInterval(),
-            "input interval"
-        );
-
-        return ImmutableList.copyOf(
-            actionClient.submit(
-                new RetrieveUsedSegmentsAction(dataSource, inputInterval, null, Segments.ONLY_VISIBLE)
-            )
-        );
-      } else {
-        final List<String> inputSegmentIds =
-            inputSegments.stream().map(WindowedSegmentId::getSegmentId).collect(Collectors.toList());
-        final Collection<DataSegment> dataSegmentsInIntervals = actionClient.submit(
-            new RetrieveUsedSegmentsAction(
-                dataSource,
-                null,
-                inputSegments.stream()
-                             .flatMap(windowedSegmentId -> windowedSegmentId.getIntervals().stream())
-                             .collect(Collectors.toSet()),
-                Segments.ONLY_VISIBLE
-            )
-        );
-        return dataSegmentsInIntervals.stream()
-                                      .filter(segment -> inputSegmentIds.contains(segment.getId().toString()))
-                                      .collect(Collectors.toList());
-      }
-    } else {
-      return ImmutableList.copyOf(
-          actionClient.submit(
-              new RetrieveUsedSegmentsAction(dataSource, null, intervalsToRead, Segments.ONLY_VISIBLE)
-          )
-      );
-    }
+    return ImmutableList.copyOf(
+        actionClient.submit(
+            new RetrieveUsedSegmentsAction(dataSource, null, intervalsToRead, Segments.ONLY_VISIBLE)
+        )
+    );
   }
 
   /**
@@ -697,6 +657,7 @@ public abstract class AbstractBatchIndexTask extends AbstractTask
               .setDimension("dataSource", getDataSource())
               .setDimension("taskType", getType())
               .setDimension("taskId", getId())
+              .setDimensionIfNotNull(DruidMetrics.TAGS, getContextValue(DruidMetrics.TAGS))
               .setDimension("segmentAvailabilityConfirmed", segmentAvailabilityConfirmationCompleted)
               .build("task/segmentAvailability/wait/time", segmentAvailabilityWaitTimeMs)
       );

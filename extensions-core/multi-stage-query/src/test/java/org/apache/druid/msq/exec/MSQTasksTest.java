@@ -19,6 +19,7 @@
 
 package org.apache.druid.msq.exec;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskState;
@@ -171,8 +172,7 @@ public class MSQTasksTest
         "foo",
         controllerContext,
         (task, fault) -> {},
-        false,
-        -1L,
+        ImmutableMap.of(),
         TimeUnit.SECONDS.toMillis(5)
     );
 
@@ -183,7 +183,7 @@ public class MSQTasksTest
     }
     catch (Exception e) {
       Assert.assertEquals(
-          MSQFaultUtils.generateMessageWithErrorCode(new TaskStartTimeoutFault(numTasks + 1)),
+          MSQFaultUtils.generateMessageWithErrorCode(new TaskStartTimeoutFault(numTasks + 1, 5000)),
           MSQFaultUtils.generateMessageWithErrorCode(((MSQException) e.getCause()).getFault())
       );
     }

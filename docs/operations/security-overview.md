@@ -1,7 +1,7 @@
 ---
 id: security-overview
 title: "Security overview"
-description: Overiew of Apache Druid security. Includes best practices, configuration instructions, and a description of the security model.
+description: Overiew of Apache Druid security. Includes best practices, configuration instructions, a description of the security model and documentation on how to report security issues.
 ---
 
 <!--
@@ -150,16 +150,16 @@ An example configuration:
    # Druid basic security
    druid.auth.authenticatorChain=["MyBasicMetadataAuthenticator"]
    druid.auth.authenticator.MyBasicMetadataAuthenticator.type=basic
-   
+
    # Default password for 'admin' user, should be changed for production.
    druid.auth.authenticator.MyBasicMetadataAuthenticator.initialAdminPassword=password1
 
    # Default password for internal 'druid_system' user, should be changed for production.
    druid.auth.authenticator.MyBasicMetadataAuthenticator.initialInternalClientPassword=password2
-   
+
    # Uses the metadata store for storing users, you can use authentication API to create new users and grant permissions
    druid.auth.authenticator.MyBasicMetadataAuthenticator.credentialsValidator.type=metadata
-   
+
    # If true and the request credential doesn't exists in this credentials store, the request will proceed to next Authenticator in the chain.
    druid.auth.authenticator.MyBasicMetadataAuthenticator.skipOnFailure=false
 
@@ -196,35 +196,29 @@ The following steps walk through a sample setup procedure:
 
 1. Create a user by issuing a POST request to `druid-ext/basic-security/authentication/db/MyBasicMetadataAuthenticator/users/<USERNAME>`, replacing USERNAME with the *new* username you are trying to create. For example: 
   ```
-   curl -u admin:password1 -XPOST https://my-coordinator-ip:8281/druid-ext/basic-security/authentication/db/basic/users/myname
+   curl -u admin:password1 -XPOST https://my-coordinator-ip:8281/druid-ext/basic-security/authentication/db/MyBasicMetadataAuthenticator/users/myname
   ```
   >  If you have TLS enabled, be sure to adjust the curl command accordingly. For example, if your Druid servers use self-signed certificates, you may choose to include the `insecure` curl option to forgo certificate checking for the curl command. 
 2. Add a credential for the user by issuing a POST to `druid-ext/basic-security/authentication/db/MyBasicMetadataAuthenticator/users/<USERNAME>/credentials`. For example:
     ```
-    curl -u admin:password1 -H'Content-Type: application/json' -XPOST --data-binary @pass.json https://my-coordinator-ip:8281/druid-ext/basic-security/authentication/db/basic/users/myname/credentials
-    ```
-    The password is conveyed in the `pass.json` file in the following form:
-   	```
-   	{
-      "password": "myname_password"
-    }
+    curl -u admin:password1 -H'Content-Type: application/json' -XPOST https://my-coordinator-ip:8281/druid-ext/basic-security/authentication/db/MyBasicMetadataAuthenticator/users/myname/credentials --data-raw '{"password": "my_password"}'
     ```
 2. For each authenticator user you create, create a corresponding authorizer user by issuing a POST request to `druid-ext/basic-security/authorization/db/MyBasicMetadataAuthorizer/users/<USERNAME>`. For example: 
 	```
-	curl -u admin:password1 -XPOST https://my-coordinator-ip:8281/druid-ext/basic-security/authorization/db/basic/users/myname
+	curl -u admin:password1 -XPOST https://my-coordinator-ip:8281/druid-ext/basic-security/authorization/db/MyBasicMetadataAuthorizer/users/myname
 	```
 3. Create authorizer roles to control permissions by issuing a POST request to `druid-ext/basic-security/authorization/db/MyBasicMetadataAuthorizer/roles/<ROLENAME>`. For example: 
 	```
-   curl -u admin:password1 -XPOST https://my-coordinator-ip:8281/druid-ext/basic-security/authorization/db/basic/roles/myrole
+   curl -u admin:password1 -XPOST https://my-coordinator-ip:8281/druid-ext/basic-security/authorization/db/MyBasicMetadataAuthorizer/roles/myrole
    ```
 4. Assign roles to users by issuing a POST request to `druid-ext/basic-security/authorization/db/MyBasicMetadataAuthorizer/users/<USERNAME>/roles/<ROLENAME>`. For example: 
 	```
-	curl -u admin:password1 -XPOST https://my-coordinator-ip:8281/druid-ext/basic-security/authorization/db/basic/users/myname/roles/myrole | jq
+	curl -u admin:password1 -XPOST https://my-coordinator-ip:8281/druid-ext/basic-security/authorization/db/MyBasicMetadataAuthorizer/users/myname/roles/myrole | jq
 	```
 5. Finally, attach permissions to the roles to control how they can interact with Druid at `druid-ext/basic-security/authorization/db/MyBasicMetadataAuthorizer/roles/<ROLENAME>/permissions`. 
 	For example: 
 	```
-	curl -u admin:password1 -H'Content-Type: application/json' -XPOST --data-binary @perms.json https://my-coordinator-ip:8281/druid-ext/basic-security/authorization/db/basic/roles/myrole/permissions
+	curl -u admin:password1 -H'Content-Type: application/json' -XPOST --data-binary @perms.json https://my-coordinator-ip:8281/druid-ext/basic-security/authorization/db/MyBasicMetadataAuthorizer/roles/myrole/permissions
 	```
 	The payload of `perms.json` should be in the form:
    	```
@@ -278,3 +272,19 @@ Cluster to deep storage:
 Cluster to client:
 1. Druid authenticates with the client based on the configured authenticator.
 2. Druid only performs actions when an authorizer grants permission. The default configuration is `allowAll authorizer`.
+
+## Reporting security issues
+
+The Apache Druid team takes security very seriously. If you find a potential security issue in Druid, such as a way to bypass the security mechanisms described earlier, please report this problem to [security@apache.org](mailto:security@apache.org). This is a private mailing list. Please send one plain text email for each vulnerability you are reporting.
+
+### Vulnerability handling
+
+The following list summarizes the vulnerability handling process:
+
+* The reporter reports the vulnerability privately to [security@apache.org](mailto:security@apache.org)
+* The reporter receives a response that the Druid team has received the report and will investigate the issue.
+* The Druid project security team works privately with the reporter to resolve the vulnerability.
+* The Druid team delivers the fix by creating a new release of the package that the vulnerability affects.
+* The Druid team publicly announces the vulnerability and describes how to apply the fix.
+
+Committers should read a [more detailed description of the process](https://www.apache.org/security/committers.html). Reporters of security vulnerabilities may also find it useful.

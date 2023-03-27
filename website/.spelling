@@ -25,6 +25,7 @@
 ACL
 ACLs
 APIs
+apache.org
 AvroStorage
 ARN
 autokill
@@ -139,6 +140,7 @@ JSONPath
 JSSE
 JVM
 JVMs
+JWT
 Joda
 JsonProperty
 Jupyter
@@ -170,6 +172,7 @@ Murmur3
 MVCC
 NFS
 OCF
+OIDC
 OLAP
 OOMs
 OpenJDK
@@ -723,6 +726,9 @@ rowsInMemory
 segmentSortOrder
 rowsPerSegment
 durableShuffleStorage
+composedIntermediateSuperSorterStorageEnabled
+intermediateSuperSorterStorageMaxLocalBytes
+ResourceLimitExceededException
 # Aggregations
 groupByEnableMultiValueUnnesting
 APPROX_COUNT_DISTINCT_DS_HLL
@@ -1096,7 +1102,7 @@ KinesisSupervisorIOConfig
 KinesisSupervisorTuningConfig
 Resharding
 resharding
-LZ4LZFuncompressedLZ4LZ4LZFuncompressednoneLZ4autolongsautolongslongstypeconcisetyperoaringcompressRunOnSerializationtruetypestreamendpointreplicastaskCounttaskCount
+LZ4LZFuncompressedLZ4LZ4LZFuncompressednoneLZ4autolongsautolongslongstypeconcisetyperoaringtypestreamendpointreplicastaskCounttaskCount
 deaggregate
 druid-kinesis-indexing-service
 maxRecordsPerPoll
@@ -1441,6 +1447,7 @@ BUILD_SEGMENTS
 DETERMINE_PARTITIONS
 forceTimeChunkLock
 taskLockTimeout
+index.md
  - ../docs/misc/math-expr.md
 DOUBLE_ARRAY
 DOY
@@ -1961,7 +1968,6 @@ GiB
 1_000_000
 2012-01-01T00
 2GB
-30_000
 524288000L
 5MiB
 8u60
@@ -2051,8 +2057,8 @@ druid_pendingSegments
 druid_rules
 druid_segments
 druid_supervisors
-druid_taskLock
-druid_taskLog
+druid_tasklocks
+druid_tasklogs
 druid_tasks
 DruidQueryRel
 durationToRetain
@@ -2312,3 +2318,6 @@ MacOS
 RHEL
 psutil
 pathlib
+- ../docs/tutorials/tutorial-sql-query-view.md
+kttm_simple
+dist_country
