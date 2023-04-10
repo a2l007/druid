@@ -1,7 +1,6 @@
 package org.apache.druid.data.input.impl;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.druid.data.input.InputChooser;
 
 import java.io.File;
 import java.util.List;

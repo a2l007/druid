@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.impl.CsvInputFormat;
+import org.apache.druid.data.input.impl.DefaultInputChooser;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.LocalInputSource;
 import org.apache.druid.data.input.impl.ParseSpec;
@@ -269,6 +270,7 @@ public class HashPartitionTaskKillTest extends AbstractMultiPhaseParallelIndexin
           null,
           new LocalInputSource(inputDir, filter),
           createInputFormatFromParseSpec(parseSpec),
+          new DefaultInputChooser(),
           appendToExisting,
           null
       );

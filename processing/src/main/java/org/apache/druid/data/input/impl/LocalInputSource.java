@@ -70,21 +70,34 @@ public class LocalInputSource extends AbstractInputSource implements SplittableI
   public LocalInputSource(
       @JsonProperty("baseDir") @Nullable File baseDir,
       @JsonProperty("filter") @Nullable String filter,
-      @JsonProperty("files") @Nullable List<File> files
+      @JsonProperty("files") @Nullable List<File> files,
+      @JsonProperty ("lazyFetch") boolean lazyFetch
   )
   {
-    this.baseDir = baseDir;
-    this.filter = baseDir != null ? Preconditions.checkNotNull(filter, "filter") : filter;
-    this.files = files == null ? Collections.emptyList() : files;
+    if (lazyFetch)
+    {
+      this.baseDir = baseDir;
+      this.filter = null;
+      this.files = Collections.emptyList();
+    } else {
+      this.baseDir = baseDir;
+      this.filter = baseDir != null ? Preconditions.checkNotNull(filter, "filter") : filter;
+      this.files = files == null ? Collections.emptyList() : files;
 
-    if (baseDir == null && CollectionUtils.isNullOrEmpty(files)) {
-      throw new IAE("At least one of baseDir or files should be specified");
+      if (baseDir == null && CollectionUtils.isNullOrEmpty(files)) {
+        throw new IAE("At least one of baseDir or files should be specified");
+      }
     }
   }
 
+  public LocalInputSource(
+      File baseDir, String filter, List<File> files)
+  {
+    this(baseDir, filter, files, false);
+  }
   public LocalInputSource(File baseDir, String filter)
   {
-    this(baseDir, filter, null);
+    this(baseDir, filter, null, false);
   }
 
   @Nullable

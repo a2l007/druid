@@ -199,13 +199,8 @@ public abstract class K8sTaskAdapter implements TaskAdapter
     mainContainer.setPorts(Lists.newArrayList(httpsPort, tcpPort));
   }
 
-  private void addEnvironmentVariables(Container mainContainer, PeonCommandContext context, String taskContents)
+  protected void addEnvironmentVariables(Container mainContainer, PeonCommandContext context, String taskContents)
   {
-    for (EnvVar envVar : mainContainer.getEnv()) {
-      if (config.peonOverrides.containsKey(envVar.getName())) {
-        envVar.setValue(config.peonOverrides.get(envVar.getName()));
-      }
-    }
     mainContainer.getEnv().addAll(Lists.newArrayList(
         new EnvVarBuilder()
             .withName(DruidK8sConstants.TASK_DIR_ENV)

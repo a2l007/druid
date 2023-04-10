@@ -29,6 +29,7 @@ import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import org.apache.commons.text.CharacterPredicates;
 import org.apache.commons.text.RandomStringGenerator;
+import org.apache.druid.data.input.impl.DefaultInputChooser;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.LocalInputSource;
 import org.apache.druid.data.input.impl.NoopInputFormat;
@@ -108,6 +109,7 @@ public class K8sTestUtils
                 null,
                 new LocalInputSource(new File("lol"), "rofl"),
                 new NoopInputFormat(),
+                new DefaultInputChooser(),
                 true,
                 false
             ),

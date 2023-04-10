@@ -28,7 +28,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class HiveInputChooser implements InputChooser
+//public class HiveInputChooser implements InputChooser
+public class HiveInputChooser
 {
   @JsonProperty
   private final String tableName;
@@ -73,7 +74,7 @@ public class HiveInputChooser implements InputChooser
                  .forEach((key, value) -> this.configuration.set(key, value));
   }
 
-  protected void setupHdfsInputSource()
+  /*protected void setupHdfsInputSource()
   {
     if (snapshotDataFiles.isEmpty()) {
       UnifiedCatalogManager ucm = new UnifiedCatalogManager(
@@ -147,6 +148,8 @@ public class HiveInputChooser implements InputChooser
     return dataFilePaths;
   }
 
+   */
+
   @Override
   public String toString()
   {
@@ -204,11 +207,13 @@ public class HiveInputChooser implements InputChooser
     return Objects.hash(tableName, namespace, partitionColumn, intervals);
   }
 
-  @Override
+  /*@Override
   public List<String> chooseFiles()
   {
     //TODO what should choosefiles do
     setupHdfsInputSource();
     return snapshotDataFiles;
   }
+
+   */
 }

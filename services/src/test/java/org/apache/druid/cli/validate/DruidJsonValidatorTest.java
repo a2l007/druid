@@ -22,6 +22,7 @@ package org.apache.druid.cli.validate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.rvesse.airline.Cli;
 import com.google.inject.Injector;
+import org.apache.druid.data.input.impl.DefaultInputChooser;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.LocalInputSource;
 import org.apache.druid.guice.GuiceInjectors;
@@ -145,6 +146,7 @@ public class DruidJsonValidatorTest
                 null,
                 new LocalInputSource(new File("lol"), "rofl"),
                 new JsonInputFormat(null, null, null, null, null),
+                new DefaultInputChooser(),
                 false,
                 false
             ),

@@ -305,6 +305,7 @@ public class ParallelIndexSupervisorTaskTest
           null,
           new InlineInputSource("test"),
           null,
+          null,
           false,
           null
       );

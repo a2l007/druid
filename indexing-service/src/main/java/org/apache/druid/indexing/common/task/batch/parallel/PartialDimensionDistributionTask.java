@@ -28,12 +28,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
 import org.apache.druid.data.input.HandlingInputRowIterator;
-import org.apache.druid.data.input.InputChooser;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.Rows;
 import org.apache.druid.data.input.StringTuple;
+import org.apache.druid.data.input.impl.InputChooser;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexer.partitions.DimensionRangePartitionsSpec;
 import org.apache.druid.indexing.common.TaskToolbox;
@@ -204,13 +204,12 @@ public class PartialDimensionDistributionTask extends PerfectRollupWorkerTask
     );
     boolean isAssumeGrouped = partitionsSpec.isAssumeGrouped();
 
-    InputSource inputSource = ingestionSchema.getIOConfig().getNonNullInputSource(
-        ingestionSchema.getDataSchema().getParser()
-    );
-    InputChooser inputChooser = ingestionSchema.getIOConfig().getInputChooser();
+    InputSource inputSource = ingestionSchema.getIOConfig().getNonNullInputSource();
     InputFormat inputFormat = inputSource.needsFormat()
                               ? ParallelIndexSupervisorTask.getInputFormat(ingestionSchema)
                               : null;
+    InputChooser inputChooser = ingestionSchema.getIOConfig().getInputChooser();
+
     final RowIngestionMeters buildSegmentsMeters = toolbox.getRowIngestionMetersFactory().createRowIngestionMeters();
     final ParseExceptionHandler parseExceptionHandler = new ParseExceptionHandler(
         buildSegmentsMeters,

@@ -251,7 +251,6 @@
             </snapshots>
         </pluginRepository>
     </pluginRepositories>
-    MultiContainerTaskAdapterTest
     <dependencyManagement>
         <dependencies>
             <!-- Compile Scope -->

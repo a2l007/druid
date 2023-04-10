@@ -42,19 +42,6 @@ public class UnifiedCatalogManager
     this.configuration = configuration;
   }
 
-  public HiveCatalog setupCatalog()
-  {
-    HiveCatalog catalog = new HiveCatalog();
-    catalog.setConf(configuration);
-
-    Map<String, String> properties = new HashMap<>();
-    properties.put("warehouse", getWarehousePath());
-    properties.put("uri", getCatalogUri());
-
-    catalog.initialize(getCatalogType(), properties);
-    return catalog;
-  }
-
   public String getCatalogType()
   {
     return catalogType;

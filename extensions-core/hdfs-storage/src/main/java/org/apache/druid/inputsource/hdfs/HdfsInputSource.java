@@ -52,6 +52,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -82,13 +83,19 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
   public HdfsInputSource(
       @JsonProperty(PROP_PATHS) Object inputPaths,
       @JacksonInject @Hdfs Configuration configuration,
-      @JacksonInject HdfsInputSourceConfig inputSourceConfig
+      @JacksonInject HdfsInputSourceConfig inputSourceConfig,
+      @JsonProperty("lazyFetch") boolean lazyFetch
   )
   {
-    this.inputPaths = coerceInputPathsToList(inputPaths, PROP_PATHS);
     this.configuration = configuration;
     this.inputSourceConfig = inputSourceConfig;
-    this.inputPaths.forEach(p -> verifyProtocol(configuration, inputSourceConfig, p));
+    if (lazyFetch) {
+      this.inputPaths = new ArrayList<>();
+    } else {
+      this.inputPaths = coerceInputPathsToList(inputPaths, PROP_PATHS);
+      this.inputPaths.forEach(p -> verifyProtocol(configuration, inputSourceConfig, p));
+    }
+
   }
 
   public static List<String> coerceInputPathsToList(Object inputPaths, String propertyName)
@@ -221,7 +228,7 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
   public SplittableInputSource<List<Path>> withSplit(InputSplit<List<Path>> split)
   {
     List<String> paths = split.get().stream().map(path -> path.toString()).collect(Collectors.toList());
-    return new HdfsInputSource(paths, configuration, inputSourceConfig);
+    return new HdfsInputSource(paths, configuration, inputSourceConfig, false);
   }
 
   @Override
@@ -233,7 +240,9 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
   @Override
   public void appendChosenPaths(List<String> chosenPaths)
   {
-    inputPaths.addAll(chosenPaths);
+    List<String> coercedPaths = coerceInputPathsToList(chosenPaths, PROP_PATHS);
+    inputPaths.addAll(coercedPaths);
+    inputPaths.forEach(p -> verifyProtocol(configuration, inputSourceConfig, p));
   }
 
   private void cachePathsIfNeeded() throws IOException
@@ -282,7 +291,8 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
       return new HdfsInputSource(
           Preconditions.checkNotNull(paths, "paths"),
           Preconditions.checkNotNull(configuration, "configuration"),
-          Preconditions.checkNotNull(inputSourceConfig, "inputSourceConfig")
+          Preconditions.checkNotNull(inputSourceConfig, "inputSourceConfig"),
+          false
       );
     }
   }

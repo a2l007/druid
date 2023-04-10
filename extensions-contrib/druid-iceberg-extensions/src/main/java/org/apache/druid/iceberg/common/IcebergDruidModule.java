@@ -7,7 +7,7 @@ import com.google.inject.Binder;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.iceberg.guice.HiveConf;
 import org.apache.druid.iceberg.input.CatalogConfig;
-import org.apache.druid.iceberg.input.HiveInputChooser;
+import org.apache.druid.iceberg.input.HiveIcebergCatalog;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -24,7 +24,7 @@ public class IcebergDruidModule implements DruidModule
     return Collections.singletonList(
         new SimpleModule("IcebergDruidModule")
             .registerSubtypes(
-                new NamedType(HiveInputChooser.class, "hive")
+                new NamedType(HiveIcebergCatalog.class, "hive")
             )
     );
   }

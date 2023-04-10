@@ -19,8 +19,6 @@
 
 package org.apache.druid.k8s.overlord.common;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
@@ -47,7 +45,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 
 @EnableKubernetesMockClient(crud = true)
 class MultiContainerTaskAdapterTest
@@ -150,33 +147,37 @@ class MultiContainerTaskAdapterTest
   }
 
   @Test
-  public void testMultiContainerOverride() throws IOException
+  public void testMultiContainerSupportWithNamedContainer() throws IOException
   {
     TestKubernetesClient testClient = new TestKubernetesClient(client);
-    Pod pod = client.pods().load(this.getClass().getClassLoader().getResourceAsStream("envOverridePodSpec.yaml")).get();
+    Pod pod = client.pods().load(this.getClass().getClassLoader().getResourceAsStream("multiContainerPodSpecOrder.yaml")).get();
     KubernetesTaskRunnerConfig config = new KubernetesTaskRunnerConfig();
     config.namespace = "test";
-    config.peonOverrides.put("druid_monitoring_monitors", "'[\"org.apache.druid.java.util.metrics.JvmMonitor\"]'");
-    ObjectMapper jsonMapper = new ObjectMapper();
-    String jsonString = jsonMapper.writeValueAsString(config);
-    System.out.println("jsonString = " + jsonString);
-
-    MultiContainerTaskAdapter adapter = new MultiContainerTaskAdapter(testClient, config, this.jsonMapper);
+    config.primaryContainerName = "primary";
+    MultiContainerTaskAdapter adapter = new MultiContainerTaskAdapter(
+        testClient,
+        config,
+        taskConfig,
+        startupLoggingConfig,
+        druidNode,
+        jsonMapper
+    );
     NoopTask task = NoopTask.create("id", 1);
     PodSpec spec = pod.getSpec();
+    K8sTaskAdapter.massageSpec(spec, "primary");
     Job actual = adapter.createJobFromPodSpec(
-        spec,
-        task,
-        new PeonCommandContext(Collections.singletonList("/peon.sh /druid/data/baseTaskDir/noop_2022-09-26T22:08:00.582Z_352988d2-5ff7-4b70-977c-3de96f9bfca6 1"),
-                               new ArrayList<>(),
-                               new File("/tmp")
-        )
+            spec,
+            task,
+            new PeonCommandContext(Collections.singletonList("/peon.sh /druid/data/baseTaskDir/noop_2022-09-26T22:08:00.582Z_352988d2-5ff7-4b70-977c-3de96f9bfca6 1"),
+                    new ArrayList<>(),
+                    new File("/tmp")
+            )
     );
     Job expected = client.batch()
-                         .v1()
-                         .jobs()
-                         .load(this.getClass().getClassLoader().getResourceAsStream("expectedEnvOverridePodSpec.yaml"))
-                         .get();
+            .v1()
+            .jobs()
+            .load(this.getClass().getClassLoader().getResourceAsStream("expectedMultiContainerOutputOrder.yaml"))
+            .get();
 
     // something is up with jdk 17, where if you compress with jdk < 17 and try and decompress you get different results,
     // this would never happen in real life, but for the jdk 17 tests this is a problem
@@ -197,4 +198,5 @@ class MultiContainerTaskAdapterTest
             .removeIf(x -> x.getName().equals("TASK_JSON"));
     Assertions.assertEquals(expected, actual);
   }
+
 }

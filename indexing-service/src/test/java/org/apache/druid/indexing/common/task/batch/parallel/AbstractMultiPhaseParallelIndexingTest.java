@@ -22,6 +22,7 @@ package org.apache.druid.indexing.common.task.batch.parallel;
 import com.google.common.base.Preconditions;
 import org.apache.druid.common.guava.FutureUtils;
 import org.apache.druid.data.input.InputFormat;
+import org.apache.druid.data.input.impl.DefaultInputChooser;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.LocalInputSource;
 import org.apache.druid.data.input.impl.ParseSpec;
@@ -245,6 +246,7 @@ abstract class AbstractMultiPhaseParallelIndexingTest extends AbstractParallelIn
           null,
           new LocalInputSource(inputDirectory, filter),
           createInputFormatFromParseSpec(parseSpec),
+          new DefaultInputChooser(),
           appendToExisting,
           dropExisting
       );

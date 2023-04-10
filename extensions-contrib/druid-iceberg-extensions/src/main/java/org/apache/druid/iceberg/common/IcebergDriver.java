@@ -41,12 +41,12 @@ public abstract class IcebergDriver
         if (tableIdentifier == null) {
           throw new IAE(" Couldn't retrieve table identifier for '%s'", tableName);
         }
-        snapshotDataFiles = extractSnapshotDataFiles(
-            icebergCatalog,
-            tableIdentifier,
-            getPartitionColumn(),
-            getIntervals()
-        );
+//        snapshotDataFiles = extractSnapshotDataFiles(
+//            icebergCatalog,
+//            tableIdentifier,
+//            getPartitionColumn(),
+//            getIntervals()
+//        );
       }
 
   protected List<String> extractSnapshotDataFiles(
@@ -90,4 +90,3 @@ public abstract class IcebergDriver
     return dataFilePaths;
   }
     }
-}

@@ -158,19 +158,6 @@ public class DruidKubernetesPeonClient implements KubernetesPeonClient
         }
         return Optional.of(new ReaderInputStream(reader, StandardCharsets.UTF_8));
       });
-      List<Integer> test = new ArrayList<>(2);
-      InputStream stream = new InputStream()
-      {
-        @Override
-        public int read() throws IOException
-        {
-          return 0;
-        }
-        @Override
-        public void close() {
-          test.add(34);
-        }
-      }
     }
     catch (Exception e) {
       log.error(e, "Error streaming logs from task: %s", taskId);

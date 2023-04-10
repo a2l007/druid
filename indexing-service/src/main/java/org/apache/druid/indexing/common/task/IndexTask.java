@@ -33,14 +33,12 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.druid.data.input.FirehoseFactory;
-import org.apache.druid.data.input.FirehoseFactoryToInputSourceAdaptor;
-import org.apache.druid.data.input.InputChooser;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.Rows;
 import org.apache.druid.data.input.impl.DefaultInputChooser;
-import org.apache.druid.data.input.impl.InputRowParser;
+import org.apache.druid.data.input.impl.InputChooser;
 import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.indexer.Checks;
 import org.apache.druid.indexer.IngestionState;
@@ -487,7 +485,6 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
                                                         .isEmpty();
 
       final InputSource inputSource = ingestionSchema.getIOConfig().getInputSource();
-
       final InputChooser inputChooser = ingestionSchema.getIOConfig().getInputChooser();
       final File tmpDir = toolbox.getIndexingTmpDir();
 
@@ -499,7 +496,6 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       final PartitionAnalysis partitionAnalysis = determineShardSpecs(
           toolbox,
           inputSource,
-          inputChooser,
           tmpDir,
           partitionsSpec
       );
@@ -621,7 +617,6 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
   private PartitionAnalysis determineShardSpecs(
       final TaskToolbox toolbox,
       final InputSource inputSource,
-      final InputChooser inputChooser,
       final File tmpDir,
       @Nonnull final PartitionsSpec partitionsSpec
   ) throws IOException
@@ -657,7 +652,6 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
           jsonMapper,
           ingestionSchema,
           inputSource,
-          inputChooser,
           tmpDir,
           granularitySpec,
           partitionsSpec,
@@ -682,7 +676,6 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       ObjectMapper jsonMapper,
       IndexIngestionSpec ingestionSchema,
       InputSource inputSource,
-      InputChooser inputChooser,
       File tmpDir,
       GranularitySpec granularitySpec,
       @Nonnull PartitionsSpec partitionsSpec,
@@ -696,7 +689,6 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         jsonMapper,
         ingestionSchema,
         inputSource,
-        inputChooser,
         tmpDir,
         granularitySpec,
         partitionsSpec,
@@ -748,7 +740,6 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       ObjectMapper jsonMapper,
       IndexIngestionSpec ingestionSchema,
       InputSource inputSource,
-      InputChooser inputChooser,
       File tmpDir,
       GranularitySpec granularitySpec,
       @Nonnull PartitionsSpec partitionsSpec,
@@ -778,8 +769,8 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         rowFilter,
         determinePartitionsMeters,
         determinePartitionsParseExceptionHandler,
-        inputChooser
-    )) {
+        new DefaultInputChooser()
+        )) {
       while (inputRowIterator.hasNext()) {
         final InputRow inputRow = inputRowIterator.next();
 
@@ -1208,14 +1199,12 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
     }
 
     @Override
-    @Nullable
-    @JsonProperty
     public InputChooser getInputChooser()
     {
-      return inputChooser;
+      return null;
     }
 
-    public InputSource getNonNullInputSource(@Nullable InputRowParser inputRowParser)
+    public InputSource getNonNullInputSource()
     {
       return Preconditions.checkNotNull(inputSource, "inputSource");
     }
@@ -1223,14 +1212,6 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
     public InputFormat getNonNullInputFormat()
     {
       return Preconditions.checkNotNull(inputFormat, "inputFormat");
-    }
-
-    public InputChooser getNonNullInputChooser()
-    {
-      if (inputChooser == null) {
-        return new DefaultInputChooser();
-      }
-      return inputChooser;
     }
 
     @Override
