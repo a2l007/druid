@@ -38,6 +38,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArraySet;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.druid.common.guava.FutureUtils;
 import org.apache.druid.data.input.StringTuple;
 import org.apache.druid.data.input.impl.DimensionSchema;
@@ -85,8 +86,6 @@ import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.msq.counters.CounterSnapshots;
 import org.apache.druid.msq.counters.CounterSnapshotsTree;
-import org.apache.druid.msq.indexing.ColumnMapping;
-import org.apache.druid.msq.indexing.ColumnMappings;
 import org.apache.druid.msq.indexing.DataSourceMSQDestination;
 import org.apache.druid.msq.indexing.InputChannelFactory;
 import org.apache.druid.msq.indexing.InputChannelsImpl;
@@ -127,6 +126,10 @@ import org.apache.druid.msq.input.InputSpecs;
 import org.apache.druid.msq.input.MapInputSpecSlicer;
 import org.apache.druid.msq.input.external.ExternalInputSpec;
 import org.apache.druid.msq.input.external.ExternalInputSpecSlicer;
+import org.apache.druid.msq.input.inline.InlineInputSpec;
+import org.apache.druid.msq.input.inline.InlineInputSpecSlicer;
+import org.apache.druid.msq.input.lookup.LookupInputSpec;
+import org.apache.druid.msq.input.lookup.LookupInputSpecSlicer;
 import org.apache.druid.msq.input.stage.InputChannels;
 import org.apache.druid.msq.input.stage.ReadablePartition;
 import org.apache.druid.msq.input.stage.StageInputSlice;
@@ -180,7 +183,10 @@ import org.apache.druid.segment.indexing.granularity.GranularitySpec;
 import org.apache.druid.segment.realtime.appenderator.SegmentIdWithShardSpec;
 import org.apache.druid.segment.transform.TransformSpec;
 import org.apache.druid.server.DruidNode;
+import org.apache.druid.sql.calcite.planner.ColumnMapping;
+import org.apache.druid.sql.calcite.planner.ColumnMappings;
 import org.apache.druid.sql.calcite.rel.DruidQuery;
+import org.apache.druid.sql.calcite.run.SqlResults;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentTimeline;
 import org.apache.druid.timeline.partition.DimensionRangeShardSpec;
@@ -349,6 +355,8 @@ public class ControllerImpl implements Controller
           throw new MSQException(CanceledFault.INSTANCE);
         }
     );
+
+    workerTaskLauncher.waitForWorkerShutdown();
   }
 
   public TaskStatus runTask(final Closer closer)
@@ -581,30 +589,16 @@ public class ControllerImpl implements Controller
     QueryValidator.validateQueryDef(queryDef);
     queryDefRef.set(queryDef);
 
-    long maxParseExceptions = -1;
-
-    if (task.getSqlQueryContext() != null) {
-      maxParseExceptions = Optional.ofNullable(
-                                       task.getSqlQueryContext().get(MSQWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
-                                   .map(DimensionHandlerUtils::convertObjectToLong)
-                                   .orElse(MSQWarnings.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED);
-    }
+    final long maxParseExceptions = task.getQuerySpec().getQuery().context().getLong(
+        MSQWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED,
+        MSQWarnings.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED
+    );
 
     ImmutableMap.Builder<String, Object> taskContextOverridesBuilder = ImmutableMap.builder();
     taskContextOverridesBuilder
         .put(
             MultiStageQueryContext.CTX_DURABLE_SHUFFLE_STORAGE,
             isDurableStorageEnabled
-        ).put(
-            MultiStageQueryContext.CTX_COMPOSED_INTERMEDIATE_SUPER_SORTER_STORAGE,
-            MultiStageQueryContext.isComposedIntermediateSuperSorterStorageEnabled(
-                task.getQuerySpec().getQuery().context()
-            )
-        ).put(
-            MultiStageQueryContext.CTX_INTERMEDIATE_SUPER_SORTER_STORAGE_MAX_LOCAL_BYTES,
-            MultiStageQueryContext.getIntermediateSuperSorterStorageMaxLocalBytes(
-                task.getQuerySpec().getQuery().context()
-            )
         ).put(
             MSQWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED,
             maxParseExceptions
@@ -678,6 +672,7 @@ public class ControllerImpl implements Controller
           "Worker[%d] has no active workOrders that need relaunch therefore not relaunching",
           worker
       );
+      workerTaskLauncher.reportFailedInactiveWorker(worker);
     }
   }
 
@@ -1431,15 +1426,26 @@ public class ControllerImpl implements Controller
                                   .stream()
                                   .map(
                                       mapping ->
-                                          columnSelectorFactory.makeColumnValueSelector(
-                                              mapping.getQueryColumn())
+                                          columnSelectorFactory.makeColumnValueSelector(mapping.getQueryColumn())
                                   ).collect(Collectors.toList());
 
+                final List<SqlTypeName> sqlTypeNames = task.getSqlTypeNames();
                 final List<Object[]> retVal = new ArrayList<>();
                 while (!cursor.isDone()) {
                   final Object[] row = new Object[columnMappings.size()];
                   for (int i = 0; i < row.length; i++) {
-                    row[i] = selectors.get(i).getObject();
+                    final Object value = selectors.get(i).getObject();
+                    if (sqlTypeNames == null || task.getSqlResultsContext() == null) {
+                      // SQL type unknown, or no SQL results context: pass-through as is.
+                      row[i] = value;
+                    } else {
+                      row[i] = SqlResults.coerce(
+                          context.jsonMapper(),
+                          task.getSqlResultsContext(),
+                          value,
+                          sqlTypeNames.get(i)
+                      );
+                    }
                   }
                   retVal.add(row);
                   cursor.advance();
@@ -1593,14 +1599,10 @@ public class ControllerImpl implements Controller
       final DataSchema dataSchema =
           generateDataSchema(querySpec, querySignature, queryClusterBy, columnMappings, jsonMapper);
 
-      final long maxInputBytesPerWorker =
-          MultiStageQueryContext.getMaxInputBytesPerWorker(querySpec.getQuery().context());
-
       builder.add(
           StageDefinition.builder(queryDef.getNextStageNumber())
                          .inputs(new StageInputSpec(queryDef.getFinalStageDefinition().getStageNumber()))
                          .maxWorkerCount(tuningConfig.getMaxNumWorkers())
-                         .maxInputBytesPerWorker(maxInputBytesPerWorker)
                          .processorFactory(
                              new SegmentGeneratorFrameProcessorFactory(
                                  dataSchema,
@@ -1897,12 +1899,19 @@ public class ControllerImpl implements Controller
               aggregators,
               outputColumnAggregatorFactories,
               outputColumnName,
-              type
+              type,
+              query.context()
           );
         } else {
           // complex columns only
           if (DimensionHandlerUtils.DIMENSION_HANDLER_PROVIDERS.containsKey(type.getComplexTypeName())) {
-            dimensions.add(DimensionSchemaUtils.createDimensionSchema(outputColumnName, type));
+            dimensions.add(
+                DimensionSchemaUtils.createDimensionSchema(
+                    outputColumnName,
+                    type,
+                    MultiStageQueryContext.useAutoColumnSchemas(query.context())
+                )
+            );
           } else if (!isRollupQuery) {
             aggregators.add(new PassthroughAggregatorFactory(outputColumnName, type.getComplexTypeName()));
           } else {
@@ -1911,7 +1920,8 @@ public class ControllerImpl implements Controller
                 aggregators,
                 outputColumnAggregatorFactories,
                 outputColumnName,
-                type
+                type,
+                query.context()
             );
           }
         }
@@ -1937,13 +1947,20 @@ public class ControllerImpl implements Controller
       List<AggregatorFactory> aggregators,
       Map<String, AggregatorFactory> outputColumnAggregatorFactories,
       String outputColumn,
-      ColumnType type
+      ColumnType type,
+      QueryContext context
   )
   {
     if (outputColumnAggregatorFactories.containsKey(outputColumn)) {
       aggregators.add(outputColumnAggregatorFactories.get(outputColumn));
     } else {
-      dimensions.add(DimensionSchemaUtils.createDimensionSchema(outputColumn, type));
+      dimensions.add(
+          DimensionSchemaUtils.createDimensionSchema(
+              outputColumn,
+              type,
+              MultiStageQueryContext.useAutoColumnSchemas(context)
+          )
+      );
     }
   }
 
@@ -1994,7 +2011,7 @@ public class ControllerImpl implements Controller
       final QueryDefinition queryDef,
       final Yielder<Object[]> resultsYielder,
       final ColumnMappings columnMappings,
-      @Nullable final List<String> sqlTypeNames
+      @Nullable final List<SqlTypeName> sqlTypeNames
   )
   {
     final RowSignature querySignature = queryDef.getFinalStageDefinition().getSignature();
@@ -2046,6 +2063,8 @@ public class ControllerImpl implements Controller
         ImmutableMap.<Class<? extends InputSpec>, InputSpecSlicer>builder()
                     .put(StageInputSpec.class, new StageInputSpecSlicer(stagePartitionsMap))
                     .put(ExternalInputSpec.class, new ExternalInputSpecSlicer())
+                    .put(InlineInputSpec.class, new InlineInputSpecSlicer())
+                    .put(LookupInputSpec.class, new LookupInputSpecSlicer())
                     .put(TableInputSpec.class, new TableInputSpecSlicer(timelineView))
                     .build()
     );
@@ -2383,10 +2402,14 @@ public class ControllerImpl implements Controller
      */
     private void startStages() throws IOException, InterruptedException
     {
+      final long maxInputBytesPerWorker =
+          MultiStageQueryContext.getMaxInputBytesPerWorker(task.getQuerySpec().getQuery().context());
+
       logKernelStatus(queryDef.getQueryId(), queryKernel);
       final List<StageId> newStageIds = queryKernel.createAndGetNewStageIds(
           inputSpecSlicerFactory,
-          task.getQuerySpec().getAssignmentStrategy()
+          task.getQuerySpec().getAssignmentStrategy(),
+          maxInputBytesPerWorker
       );
 
       for (final StageId stageId : newStageIds) {
