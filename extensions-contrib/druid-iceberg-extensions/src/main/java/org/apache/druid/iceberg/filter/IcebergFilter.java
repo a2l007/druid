@@ -17,23 +17,23 @@
  * under the License.
  */
 
-package org.apache.druid.iceberg.guice;
+package org.apache.druid.iceberg.filter;
 
-import com.google.inject.BindingAnnotation;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.apache.iceberg.TableScan;
+import org.apache.iceberg.expressions.Expression;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "interval", value = IcebergIntervalFilter.class),
+    @JsonSubTypes.Type(name = "equals", value = IcebergEqualsFilter.class),
+    @JsonSubTypes.Type(name = "and", value = IcebergAndFilter.class),
+    @JsonSubTypes.Type(name = "or", value = IcebergOrFilter.class)
+})
+    public interface IcebergFilter
+    {
+    public TableScan filter(TableScan tableScan);
 
-/**
- * Each extension module needs to properly bind whatever it will use, but sometimes different modules need to bind the
- * same class which will lead to the duplicate injection error. To avoid this problem, each module is supposed to bind
- * different instances.
- */
-@Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.METHOD})
-@Retention(RetentionPolicy.RUNTIME)
-@BindingAnnotation
-public @interface HiveConf
-{
-}
+    public Expression getFilterExpression();
+    }

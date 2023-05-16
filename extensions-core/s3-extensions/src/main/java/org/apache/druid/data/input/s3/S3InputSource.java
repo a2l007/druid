@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class S3InputSource extends CloudObjectInputSource
 {
@@ -374,12 +375,6 @@ public class S3InputSource extends CloudObjectInputSource
         getAwsEndpointConfig(),
         getAwsClientConfig()
     );
-  }
-
-  @Override
-  public void appendChosenPaths(List<String> chosenPaths)
-  {
-    getObjects().addAll(chosenPaths.stream().map(path -> new CloudObjectLocation(URI.create(path))).collect(Collectors.toList()));
   }
   @Override
   public int hashCode()

@@ -17,23 +17,19 @@
  * under the License.
  */
 
-package org.apache.druid.iceberg.guice;
+package org.apache.druid.data.input.impl;
 
-import com.google.inject.BindingAnnotation;
+import org.junit.Assert;
+import org.junit.Test;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.util.Arrays;
 
-/**
- * Each extension module needs to properly bind whatever it will use, but sometimes different modules need to bind the
- * same class which will lead to the duplicate injection error. To avoid this problem, each module is supposed to bind
- * different instances.
- */
-@Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.METHOD})
-@Retention(RetentionPolicy.RUNTIME)
-@BindingAnnotation
-public @interface HiveConf
+public class LocalInputSourceAdapterTest
 {
+  @Test
+  public void testAdapterGet()
+  {
+    LocalInputSourceAdapter localInputSourceAdapter = new LocalInputSourceAdapter();
+    Assert.assertTrue(localInputSourceAdapter.generateInputSource(Arrays.asList("foo.parquet", "bar.parquet")) instanceof LocalInputSource);
+  }
 }

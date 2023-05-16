@@ -40,6 +40,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
@@ -73,6 +74,25 @@ public abstract class CloudObjectInputSource extends AbstractInputSource
     this.objectGlob = objectGlob;
 
     illegalArgsChecker();
+  }
+
+  public CloudObjectInputSource(
+      String scheme,
+      @Nullable List<URI> uris,
+      @Nullable List<URI> prefixes,
+      @Nullable List<CloudObjectLocation> objects,
+      @Nullable String objectGlob,
+      @Nullable boolean icebergFetch
+  )
+  {
+    this.scheme = scheme;
+    this.uris = uris;
+    this.prefixes = prefixes;
+    this.objects = objects;
+    this.objectGlob = objectGlob;
+    if (!icebergFetch) {
+      illegalArgsChecker();
+    }
   }
 
   @JsonProperty
@@ -173,6 +193,20 @@ public abstract class CloudObjectInputSource extends AbstractInputSource
         createSplits(inputFormat, null).flatMap(split -> split.get().stream()).map(this::createEntity).iterator(),
         temporaryDirectory
     );
+  }
+
+  @Override
+  public void appendInputFilePaths(List<String> inputFilePaths)
+  {
+    for (String inputFilePath : inputFilePaths)
+    {
+      try {
+        uris.add(new URI(inputFilePath));
+      } catch (URISyntaxException use) {
+        throw new RuntimeException(use);
+      }
+    }
+    illegalArgsChecker();
   }
 
   @Override

@@ -17,23 +17,26 @@
  * under the License.
  */
 
-package org.apache.druid.iceberg.guice;
+package org.apache.druid.data.input.impl;
 
-import com.google.inject.BindingAnnotation;
+import org.apache.druid.data.input.AbstractInputSourceAdapter;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.io.File;
+import java.util.List;
+import java.util.stream.Collectors;
 
-/**
- * Each extension module needs to properly bind whatever it will use, but sometimes different modules need to bind the
- * same class which will lead to the duplicate injection error. To avoid this problem, each module is supposed to bind
- * different instances.
- */
-@Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.METHOD})
-@Retention(RetentionPolicy.RUNTIME)
-@BindingAnnotation
-public @interface HiveConf
+public class LocalInputSourceAdapter extends AbstractInputSourceAdapter
 {
+  public static final String TYPE_KEY = "local";
+
+  @Override
+  public LocalInputSource generateInputSource(List<String> inputFilePaths)
+  {
+      return new LocalInputSource(
+          null,
+          null,
+          inputFilePaths.stream().map(chosenPath -> new File(chosenPath)).collect(
+              Collectors.toList())
+      );
+  }
 }

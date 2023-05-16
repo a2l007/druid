@@ -244,6 +244,7 @@ public class IndexTaskTest extends IngestionTestBase
                 null,
                 new LocalInputSource(tmpDir, "druid*"),
                 DEFAULT_INPUT_FORMAT,
+                null,
                 false,
                 false
             ),

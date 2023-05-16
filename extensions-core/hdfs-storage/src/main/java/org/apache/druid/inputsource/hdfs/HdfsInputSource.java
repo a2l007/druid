@@ -74,7 +74,7 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
   private final HdfsInputSourceConfig inputSourceConfig;
 
   // Although the javadocs for SplittableInputSource say to avoid caching splits to reduce memory, HdfsInputSource
-  // *does* cache the splits for the following reasons:
+  // *does* cache the splits for the  following reasons:
   //
   // 1) It will improve compatibility with the index_hadoop task, allowing people to easily migrate from Hadoop.
   //    For example, input paths with globs will be supported (lazily expanding the wildcard glob is tricky).
@@ -88,19 +88,13 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
   public HdfsInputSource(
       @JsonProperty(PROP_PATHS) Object inputPaths,
       @JacksonInject @Hdfs Configuration configuration,
-      @JacksonInject HdfsInputSourceConfig inputSourceConfig,
-      @JsonProperty("lazyFetch") boolean lazyFetch
+      @JacksonInject HdfsInputSourceConfig inputSourceConfig
   )
   {
     this.configuration = configuration;
     this.inputSourceConfig = inputSourceConfig;
-    if (lazyFetch) {
-      this.inputPaths = new ArrayList<>();
-    } else {
-      this.inputPaths = coerceInputPathsToList(inputPaths, PROP_PATHS);
-      this.inputPaths.forEach(p -> verifyProtocol(configuration, inputSourceConfig, p));
-    }
-
+    this.inputPaths = coerceInputPathsToList(inputPaths, PROP_PATHS);
+    this.inputPaths.forEach(p -> verifyProtocol(configuration, inputSourceConfig, p));
   }
 
   @JsonIgnore
@@ -161,26 +155,26 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
                                     .collect(Collectors.toSet());
   }
 
-  /**
-   * Helper for leveraging hadoop code to interpret HDFS paths with globs
-   */
-  private static class HdfsFileInputFormat extends FileInputFormat<Object, Object>
+/**
+ * Helper for leveraging hadoop code to interpret HDFS paths with globs
+ */
+private static class HdfsFileInputFormat extends FileInputFormat<Object, Object>
+{
+  @Override
+  public RecordReader<Object, Object> createRecordReader(
+      org.apache.hadoop.mapreduce.InputSplit inputSplit,
+      TaskAttemptContext taskAttemptContext
+  )
   {
-    @Override
-    public RecordReader<Object, Object> createRecordReader(
-        org.apache.hadoop.mapreduce.InputSplit inputSplit,
-        TaskAttemptContext taskAttemptContext
-    )
-    {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    protected boolean isSplitable(JobContext context, Path filename)
-    {
-      return false;  // prevent generating extra paths
-    }
+    throw new UnsupportedOperationException();
   }
+
+  @Override
+  protected boolean isSplitable(JobContext context, Path filename)
+  {
+    return false;  // prevent generating extra paths
+  }
+}
 
   @VisibleForTesting
   @JsonProperty(PROP_PATHS)
@@ -241,7 +235,7 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
   public SplittableInputSource<List<Path>> withSplit(InputSplit<List<Path>> split)
   {
     List<String> paths = split.get().stream().map(path -> path.toString()).collect(Collectors.toList());
-    return new HdfsInputSource(paths, configuration, inputSourceConfig, false);
+    return new HdfsInputSource(paths, configuration, inputSourceConfig);
   }
 
   @Override
@@ -251,9 +245,9 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
   }
 
   @Override
-  public void appendChosenPaths(List<String> chosenPaths)
+  public void appendInputFilePaths(List<String> inputFilePaths)
   {
-    List<String> coercedPaths = coerceInputPathsToList(chosenPaths, PROP_PATHS);
+    List<String> coercedPaths = coerceInputPathsToList(inputFilePaths, PROP_PATHS);
     inputPaths.addAll(coercedPaths);
     inputPaths.forEach(p -> verifyProtocol(configuration, inputSourceConfig, p));
   }
@@ -271,42 +265,41 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
     return new Builder();
   }
 
-  static final class Builder
+static final class Builder
+{
+  private Object paths;
+  private Configuration configuration;
+  private HdfsInputSourceConfig inputSourceConfig;
+
+  private Builder()
   {
-    private Object paths;
-    private Configuration configuration;
-    private HdfsInputSourceConfig inputSourceConfig;
-
-    private Builder()
-    {
-    }
-
-    Builder paths(Object paths)
-    {
-      this.paths = paths;
-      return this;
-    }
-
-    Builder configuration(Configuration configuration)
-    {
-      this.configuration = configuration;
-      return this;
-    }
-
-    Builder inputSourceConfig(HdfsInputSourceConfig inputSourceConfig)
-    {
-      this.inputSourceConfig = inputSourceConfig;
-      return this;
-    }
-
-    HdfsInputSource build()
-    {
-      return new HdfsInputSource(
-          Preconditions.checkNotNull(paths, "paths"),
-          Preconditions.checkNotNull(configuration, "configuration"),
-          Preconditions.checkNotNull(inputSourceConfig, "inputSourceConfig"),
-          false
-      );
-    }
   }
+
+  Builder paths(Object paths)
+  {
+    this.paths = paths;
+    return this;
+  }
+
+  Builder configuration(Configuration configuration)
+  {
+    this.configuration = configuration;
+    return this;
+  }
+
+  Builder inputSourceConfig(HdfsInputSourceConfig inputSourceConfig)
+  {
+    this.inputSourceConfig = inputSourceConfig;
+    return this;
+  }
+
+  HdfsInputSource build()
+  {
+    return new HdfsInputSource(
+        Preconditions.checkNotNull(paths, "paths"),
+        Preconditions.checkNotNull(configuration, "configuration"),
+        Preconditions.checkNotNull(inputSourceConfig, "inputSourceConfig")
+    );
+  }
+}
 }

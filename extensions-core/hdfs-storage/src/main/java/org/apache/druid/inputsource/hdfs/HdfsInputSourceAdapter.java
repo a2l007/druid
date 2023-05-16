@@ -17,48 +17,34 @@
  * under the License.
  */
 
-package org.apache.druid.iceberg.common;
+package org.apache.druid.inputsource.hdfs;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.druid.data.input.AbstractInputSourceAdapter;
+import org.apache.druid.data.input.impl.SplittableInputSource;
+import org.apache.druid.guice.Hdfs;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.hive.HiveCatalog;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
-public class UnifiedCatalogManager
+public class HdfsInputSourceAdapter extends AbstractInputSourceAdapter
 {
-  private String catalogType;
-  private String warehouseType;
-  private String warehousePath;
-  private String catalogUri;
-  private Configuration configuration;
+  private final Configuration configuration;
+  private final HdfsInputSourceConfig inputSourceConfig;
 
-  public UnifiedCatalogManager(String catalogType, String warehouseType, String warehousePath, String catalogUri, Configuration configuration)
+  @JsonCreator
+  public HdfsInputSourceAdapter(
+      @JacksonInject @Hdfs Configuration configuration,
+      @JacksonInject HdfsInputSourceConfig inputSourceConfig
+  )
   {
-    this.catalogType = catalogType;
-    this.warehouseType = warehouseType;
-    this.warehousePath = warehousePath;
-    this.catalogUri = catalogUri;
     this.configuration = configuration;
+    this.inputSourceConfig = inputSourceConfig;
   }
-
-  public String getCatalogType()
+  @Override
+  public SplittableInputSource generateInputSource(List<String> inputFilePaths)
   {
-    return catalogType;
-  }
-
-  public String getWarehouseType()
-  {
-    return warehouseType;
-  }
-
-  public String getWarehousePath()
-  {
-    return warehousePath;
-  }
-
-  public String getCatalogUri()
-  {
-    return catalogUri;
+    return new HdfsInputSource(inputFilePaths, configuration, inputSourceConfig);
   }
 }

@@ -27,7 +27,6 @@ import org.apache.druid.guice.DruidGuiceExtensions;
 import org.apache.druid.guice.JsonConfigurator;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.LifecycleModule;
-import org.apache.druid.inputsource.hdfs.HdfsInputSource;
 import org.apache.druid.inputsource.hdfs.HdfsInputSourceConfig;
 import org.apache.druid.segment.loading.OmniDataSegmentKiller;
 import org.junit.Assert;
@@ -45,7 +44,6 @@ public class HdfsStorageDruidModuleTest
     Properties props = new Properties();
     Injector injector = makeInjectorWithProperties(props);
     HdfsInputSourceConfig instance = injector.getInstance(HdfsInputSourceConfig.class);
-    HdfsInputSource source = injector.getInstance(HdfsInputSource.class);
     Assert.assertEquals(
         ImmutableSet.of("hdfs"),
         instance.getAllowedProtocols()

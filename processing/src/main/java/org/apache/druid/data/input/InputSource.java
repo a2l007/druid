@@ -92,7 +92,7 @@ public interface InputSource
       File temporaryDirectory
   );
 
-  default void appendChosenPaths(List<String> chosenPaths)
+  default void appendInputFilePaths(List<String> inputFilePaths)
   {
 
   }

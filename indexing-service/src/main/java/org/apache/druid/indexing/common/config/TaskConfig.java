@@ -48,7 +48,7 @@ public class TaskConfig
 {
   private static final Logger log = new Logger(TaskConfig.class);
   private static final String HADOOP_LIB_VERSIONS = "hadoop.indexer.libs.version";
-  public static final List<String> DEFAULT_DEFAULT_HADOOP_COORDINATES;
+  public static List<String> DEFAULT_DEFAULT_HADOOP_COORDINATES;
 
   static {
     try {
@@ -61,7 +61,9 @@ public class TaskConfig
 
     }
     catch (Exception e) {
-      throw new ISE(e, "Unable to read file %s from classpath ", HADOOP_LIB_VERSIONS);
+      DEFAULT_DEFAULT_HADOOP_COORDINATES = Collections.emptyList();
+      //TODO uncomment this
+      //throw new ISE(e, "Unable to read file %s from classpath ", HADOOP_LIB_VERSIONS);
     }
   }
 
