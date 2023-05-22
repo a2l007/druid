@@ -24,7 +24,7 @@ title: "Iceberg"
 
 ## Iceberg Ingest Extension
 
-This extension provides IcebergInputSource which enables ingestion of data stored in the Iceberg table format into Druid.
+This extension provides [IcebergInputSource](../../ingestion/input-sources.md#iceberg-input-source) which enables ingestion of data stored in the Iceberg table format into Druid.
 
 Apache Iceberg is an open table format for huge analytic datasets. Even though iceberg manages most of its metadata on metadata files, it is still dependent on a metastore for managing a certain amount of metadata.
 These metastores are defined as Iceberg catalogs and this extension supports connecting to the following catalog types:
