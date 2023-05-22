@@ -26,13 +26,11 @@ import org.apache.druid.data.input.AbstractInputSourceAdapter;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRowSchema;
 import org.apache.druid.data.input.InputSource;
-import org.apache.druid.data.input.InputSourceAdapter;
 import org.apache.druid.data.input.InputSourceReader;
 import org.apache.druid.data.input.InputSplit;
 import org.apache.druid.data.input.SplitHintSpec;
 import org.apache.druid.data.input.impl.SplittableInputSource;
 import org.apache.druid.iceberg.filter.IcebergFilter;
-import org.apache.druid.java.util.common.logger.Logger;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -40,8 +38,15 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Stream;
 
+/**
+ * Inputsource to ingest data managed by the Iceberg table format.
+ * This inputsource talks to the configured catalog, executes any configured filters and retrieves the data file paths upto the latest snapshot associated with the iceberg table.
+ * The data file paths are then provided to a native {@link SplittableInputSource} implementation depending on the warehouse source defined.
+ */
 public class IcebergInputSource implements SplittableInputSource<List<String>>
 {
+  public static final String TYPE_KEY = "iceberg";
+
   @JsonProperty
   private final String tableName;
 
@@ -57,24 +62,22 @@ public class IcebergInputSource implements SplittableInputSource<List<String>>
   @JsonProperty
   private AbstractInputSourceAdapter warehouseSource;
 
-  private static final Logger log = new Logger(IcebergInputSource.class);
-
   private boolean isLoaded = false;
 
   @JsonCreator
   public IcebergInputSource(
       @JsonProperty("tableName") String tableName,
       @JsonProperty("namespace") String namespace,
-      @JsonProperty("icebergFilter") IcebergFilter icebergFilter,
-      @JsonProperty("catalogType") IcebergCatalog icebergCatalog,
+      @JsonProperty("icebergFilter") @Nullable IcebergFilter icebergFilter,
+      @JsonProperty("icebergCatalog") IcebergCatalog icebergCatalog,
       @JsonProperty("warehouseSource") AbstractInputSourceAdapter warehouseSource
   )
   {
     this.tableName = Preconditions.checkNotNull(tableName, "tableName cannot be null");
     this.namespace = Preconditions.checkNotNull(namespace, "namespace cannot be null");
-    this.icebergCatalog = icebergCatalog;
+    this.icebergCatalog = Preconditions.checkNotNull(icebergCatalog, "icebergCatalog cannot be null");
     this.icebergFilter = icebergFilter;
-    this.warehouseSource = warehouseSource;
+    this.warehouseSource = Preconditions.checkNotNull(warehouseSource, "warehouseSource cannot be null");
   }
 
   @Override
@@ -85,7 +88,9 @@ public class IcebergInputSource implements SplittableInputSource<List<String>>
 
   @Override
   public InputSourceReader reader(
-      InputRowSchema inputRowSchema, @Nullable InputFormat inputFormat, File temporaryDirectory
+      InputRowSchema inputRowSchema,
+      @Nullable InputFormat inputFormat,
+      File temporaryDirectory
   )
   {
     if (!isLoaded) {
@@ -96,10 +101,10 @@ public class IcebergInputSource implements SplittableInputSource<List<String>>
 
   @Override
   public Stream<InputSplit<List<String>>> createSplits(
-      InputFormat inputFormat, @Nullable SplitHintSpec splitHintSpec
+      InputFormat inputFormat,
+      @Nullable SplitHintSpec splitHintSpec
   ) throws IOException
   {
-    log.error("A2L Creating Splits");
     if (!isLoaded) {
       retrieveIcebergDatafiles();
     }
@@ -109,7 +114,6 @@ public class IcebergInputSource implements SplittableInputSource<List<String>>
   @Override
   public int estimateNumSplits(InputFormat inputFormat, @Nullable SplitHintSpec splitHintSpec) throws IOException
   {
-    log.error("A2L Estimating Splits");
     if (!isLoaded) {
       retrieveIcebergDatafiles();
     }
@@ -119,7 +123,6 @@ public class IcebergInputSource implements SplittableInputSource<List<String>>
   @Override
   public InputSource withSplit(InputSplit<List<String>> inputSplit)
   {
-    log.error("A2L Using splits");
     return warehouseSource.getInputSource().withSplit(inputSplit);
   }
 
@@ -160,10 +163,6 @@ public class IcebergInputSource implements SplittableInputSource<List<String>>
         getTableName(),
         getIcebergFilter()
     );
-    log.error("Snap shot data files are :");
-    for (String s : snapshotDataFiles) {
-      log.error(s);
-    }
     warehouseSource.setupInputSource(snapshotDataFiles);
     isLoaded = true;
   }

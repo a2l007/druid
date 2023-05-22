@@ -19,25 +19,42 @@
 
 package org.apache.druid.iceberg.filter;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.expressions.Expressions;
 
-/**
- * Interface to manage iceberg expressions which can be used to perform filtering on the iceberg table
- */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "interval", value = IcebergIntervalFilter.class),
-    @JsonSubTypes.Type(name = "equals", value = IcebergEqualsFilter.class),
-    @JsonSubTypes.Type(name = "and", value = IcebergAndFilter.class),
-    @JsonSubTypes.Type(name = "not", value = IcebergNotFilter.class),
-    @JsonSubTypes.Type(name = "or", value = IcebergOrFilter.class)
-})
-public interface IcebergFilter
+
+public class IcebergNotFilter implements IcebergFilter
 {
-  TableScan filter(TableScan tableScan);
+  private final IcebergFilter filter;
 
-  Expression getFilterExpression();
+  @JsonCreator
+  public IcebergNotFilter(
+      @JsonProperty("filter") IcebergFilter filter
+  )
+  {
+    Preconditions.checkNotNull(filter, "filter cannot be null");
+    this.filter = filter;
+  }
+
+  @Override
+  public TableScan filter(TableScan tableScan)
+  {
+    return tableScan.filter(getFilterExpression());
+  }
+
+  @Override
+  public Expression getFilterExpression()
+  {
+    return Expressions.not(filter.getFilterExpression());
+  }
+
+  @JsonProperty
+  public IcebergFilter getFilter()
+  {
+    return filter;
+  }
 }

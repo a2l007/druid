@@ -23,10 +23,20 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.druid.data.input.impl.LocalInputSourceAdapter;
 import org.apache.druid.data.input.impl.SplittableInputSource;
+import org.apache.druid.java.util.common.CloseableIterators;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.parsers.CloseableIterator;
 
+import javax.annotation.Nullable;
+import java.io.File;
+import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
+/**
+ * A wrapper on top of {@link SplittableInputSource} that handles input source creation.
+ */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = LocalInputSourceAdapter.TYPE_KEY, value = LocalInputSourceAdapter.class)
@@ -39,18 +49,82 @@ public abstract class AbstractInputSourceAdapter
 
   public void setupInputSource(List<String> inputFilePaths)
   {
-    if (inputSource != null)
-    {
+    if (inputSource != null) {
       throw new ISE("Inputsource is already initialized!");
     }
-    inputSource = generateInputSource(inputFilePaths);
+    if (inputFilePaths.isEmpty()) {
+      inputSource = new EmptyInputSource();
+    } else {
+      inputSource = generateInputSource(inputFilePaths);
+    }
   }
+
   public SplittableInputSource getInputSource()
   {
-    if (inputSource == null)
-    {
+    if (inputSource == null) {
       throw new ISE("Inputsource is not initialized yet!");
     }
     return inputSource;
+  }
+
+  private static class EmptyInputSource implements SplittableInputSource
+  {
+    @Override
+    public boolean needsFormat()
+    {
+      return false;
+    }
+
+    @Override
+    public boolean isSplittable()
+    {
+      return false;
+    }
+
+    @Override
+    public InputSourceReader reader(
+        InputRowSchema inputRowSchema,
+        @Nullable InputFormat inputFormat,
+        File temporaryDirectory
+    )
+    {
+      return new InputSourceReader()
+      {
+        @Override
+        public CloseableIterator<InputRow> read(InputStats inputStats)
+        {
+          return CloseableIterators.wrap(Collections.emptyIterator(), () -> {
+          });
+        }
+
+        @Override
+        public CloseableIterator<InputRowListPlusRawValues> sample()
+        {
+          return CloseableIterators.wrap(Collections.emptyIterator(), () -> {
+          });
+        }
+      };
+    }
+
+    @Override
+    public Stream<InputSplit> createSplits(
+        InputFormat inputFormat,
+        @Nullable SplitHintSpec splitHintSpec
+    ) throws IOException
+    {
+      return Stream.empty();
+    }
+
+    @Override
+    public int estimateNumSplits(InputFormat inputFormat, @Nullable SplitHintSpec splitHintSpec) throws IOException
+    {
+      return 0;
+    }
+
+    @Override
+    public InputSource withSplit(InputSplit split)
+    {
+      return null;
+    }
   }
 }

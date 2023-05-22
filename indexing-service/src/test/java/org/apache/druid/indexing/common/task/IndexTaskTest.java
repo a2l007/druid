@@ -30,7 +30,6 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.impl.CSVParseSpec;
 import org.apache.druid.data.input.impl.CsvInputFormat;
-import org.apache.druid.data.input.impl.DefaultInputChooser;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.FloatDimensionSchema;
 import org.apache.druid.data.input.impl.JSONParseSpec;
@@ -245,7 +244,6 @@ public class IndexTaskTest extends IngestionTestBase
                 null,
                 new LocalInputSource(tmpDir, "druid*"),
                 DEFAULT_INPUT_FORMAT,
-                null,
                 false,
                 false
             ),
@@ -303,7 +301,6 @@ public class IndexTaskTest extends IngestionTestBase
                 null,
                 new LocalInputSource(tmpDir, "druid*"),
                 DEFAULT_INPUT_FORMAT,
-                null,
                 false,
                 false
             ),
@@ -359,7 +356,6 @@ public class IndexTaskTest extends IngestionTestBase
                 null,
                 new LocalInputSource(tmpDir, "druid*"),
                 DEFAULT_INPUT_FORMAT,
-                null,
                 false,
                 false
             ),
@@ -2927,7 +2923,6 @@ public class IndexTaskTest extends IngestionTestBase
               null,
               new LocalInputSource(baseDir, "druid*"),
               inputFormat,
-              null,
               appendToExisting,
               dropExisting
           ),
@@ -2956,7 +2951,6 @@ public class IndexTaskTest extends IngestionTestBase
               null,
               new LocalInputSource(baseDir, "druid*"),
               createInputFormatFromParseSpec(parseSpec),
-              new DefaultInputChooser(),
               appendToExisting,
               dropExisting
           ),

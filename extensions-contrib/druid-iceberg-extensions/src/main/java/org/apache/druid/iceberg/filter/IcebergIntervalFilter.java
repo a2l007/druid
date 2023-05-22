@@ -46,7 +46,7 @@ public class IcebergIntervalFilter implements IcebergFilter
       @JsonProperty("intervals") List<Interval> intervals
   )
   {
-    Preconditions.checkNotNull(filterColumn, "dimension can not be null");
+    Preconditions.checkNotNull(filterColumn, "filterColumn can not be null");
     Preconditions.checkNotNull(intervals, "intervals can not be null");
     this.filterColumn = filterColumn;
     this.intervals = intervals;
@@ -55,16 +55,14 @@ public class IcebergIntervalFilter implements IcebergFilter
   @Override
   public TableScan filter(TableScan tableScan)
   {
-    tableScan = tableScan.filter(getFilterExpression());
-    return tableScan;
-}
+    return tableScan.filter(getFilterExpression());
+  }
 
   @Override
   public Expression getFilterExpression()
   {
     List<Expression> expressions = new ArrayList<>();
     for (Interval filterInterval : intervals) {
-      //Interval filterInterval = Interval.parse(interval);
       Long dateStart = (long) Literal.of(filterInterval.getStart().toString())
                                      .to(Types.TimestampType.withZone())
                                      .value();

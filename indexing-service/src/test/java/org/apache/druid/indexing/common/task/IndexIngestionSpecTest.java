@@ -20,7 +20,6 @@
 package org.apache.druid.indexing.common.task;
 
 import com.google.common.collect.ImmutableMap;
-import org.apache.druid.data.input.impl.DefaultInputChooser;
 import org.apache.druid.data.input.impl.NoopInputFormat;
 import org.apache.druid.data.input.impl.NoopInputSource;
 import org.apache.druid.indexing.common.task.IndexTask.IndexIOConfig;
@@ -58,7 +57,6 @@ public class IndexIngestionSpecTest
             null,
             new NoopInputSource(),
             new NoopInputFormat(),
-            new DefaultInputChooser(),
             null,
             null
         ),
@@ -83,7 +81,6 @@ public class IndexIngestionSpecTest
         new IndexIOConfig(
             null,
             new NoopInputSource(),
-            null,
             null,
             null,
             null

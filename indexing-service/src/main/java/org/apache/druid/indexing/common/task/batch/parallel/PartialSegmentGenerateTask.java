@@ -209,7 +209,6 @@ abstract class PartialSegmentGenerateTask<T extends GeneratedPartitionsReport> e
           partitionsSpec,
           inputSource,
           inputSource.needsFormat() ? ParallelIndexSupervisorTask.getInputFormat(ingestionSchema) : null,
-          null,
           tmpDir,
           sequenceNameFunction,
           inputRowIteratorBuilder,

@@ -22,12 +22,14 @@ package org.apache.druid.data.input.s3;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.common.aws.AWSClientConfig;
 import org.apache.druid.common.aws.AWSEndpointConfig;
 import org.apache.druid.common.aws.AWSProxyConfig;
 import org.apache.druid.data.input.AbstractInputSourceAdapter;
 import org.apache.druid.data.input.impl.SplittableInputSource;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.storage.s3.S3InputDataConfig;
 import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
 
@@ -80,7 +82,7 @@ public class S3InputSourceAdapter extends AbstractInputSourceAdapter
         awsCredentialsProvider,
         inputFilePaths.stream().map(chosenPath -> {
           try {
-            return new URI(chosenPath);
+            return new URI(StringUtils.replace(chosenPath, "s3a://", "s3://"));
           }
           catch (URISyntaxException e) {
             throw new RuntimeException(e);
@@ -96,4 +98,37 @@ public class S3InputSourceAdapter extends AbstractInputSourceAdapter
         awsClientConfig
     );
   }
+
+  @Nullable
+  @JsonProperty("properties")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public S3InputSourceConfig getS3InputSourceConfig()
+  {
+    return s3InputSourceConfig;
+  }
+
+  @Nullable
+  @JsonProperty("proxyConfig")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public AWSProxyConfig getAwsProxyConfig()
+  {
+    return awsProxyConfig;
+  }
+
+  @Nullable
+  @JsonProperty("clientConfig")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public AWSClientConfig getAwsClientConfig()
+  {
+    return awsClientConfig;
+  }
+
+  @Nullable
+  @JsonProperty("endpointConfig")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public AWSEndpointConfig getAwsEndpointConfig()
+  {
+    return awsEndpointConfig;
+  }
+
 }

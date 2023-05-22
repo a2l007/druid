@@ -35,7 +35,6 @@ import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.Rows;
 import org.apache.druid.data.input.StringTuple;
-import org.apache.druid.data.input.impl.InputChooser;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexer.partitions.DimensionRangePartitionsSpec;
 import org.apache.druid.indexing.common.TaskToolbox;
@@ -233,7 +232,6 @@ public class PartialDimensionDistributionTask extends PerfectRollupWorkerTask
     InputFormat inputFormat = inputSource.needsFormat()
                               ? ParallelIndexSupervisorTask.getInputFormat(ingestionSchema)
                               : null;
-    InputChooser inputChooser = ingestionSchema.getIOConfig().getInputChooser();
 
     final RowIngestionMeters buildSegmentsMeters = toolbox.getRowIngestionMetersFactory().createRowIngestionMeters();
     final ParseExceptionHandler parseExceptionHandler = new ParseExceptionHandler(
@@ -252,8 +250,7 @@ public class PartialDimensionDistributionTask extends PerfectRollupWorkerTask
             inputFormat,
             determineIntervals ? Objects::nonNull : AbstractBatchIndexTask.defaultRowFilter(granularitySpec),
             buildSegmentsMeters,
-            parseExceptionHandler,
-            inputChooser
+            parseExceptionHandler
         );
         HandlingInputRowIterator iterator =
             new RangePartitionIndexTaskInputRowIteratorBuilder(partitionDimensions, SKIP_NULL)

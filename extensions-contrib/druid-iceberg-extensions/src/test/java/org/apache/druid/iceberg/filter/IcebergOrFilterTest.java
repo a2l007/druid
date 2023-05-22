@@ -30,7 +30,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Collections;
 
-public class IcebergAndFilterTest
+public class IcebergOrFilterTest
 {
   private final String INTERVAL_COLUMN = "eventTime";
   private final String COLUMN1 = "column1";
@@ -56,32 +56,54 @@ public class IcebergAndFilterTest
   @Test
   public void testFilter()
   {
-    IcebergAndFilter andFilter = new IcebergAndFilter(Arrays.asList(
+    IcebergOrFilter andFilter = new IcebergOrFilter(Arrays.asList(
         new IcebergEqualsFilter(COLUMN1, "value1"),
         new IcebergEqualsFilter(COLUMN2, "value2")
     ));
-    Expression expectedExpression = Expressions.and(equalExpression1, equalExpression2);
+    Expression expectedExpression = Expressions.or(equalExpression1, equalExpression2);
     Assert.assertEquals(expectedExpression.toString(), andFilter.getFilterExpression().toString());
   }
 
   @Test
-  public void testNestedFilter()
+  public void testNestedFilters()
   {
-    IcebergAndFilter andFilter = new IcebergAndFilter(
+    IcebergOrFilter filterOrOr = new IcebergOrFilter(
+        Arrays.asList(
+            new IcebergOrFilter(
+                Arrays.asList(
+                    new IcebergEqualsFilter(COLUMN1, "value1"),
+                    new IcebergEqualsFilter(COLUMN2, "value2")
+                )),
+            new IcebergIntervalFilter(
+                INTERVAL_COLUMN,
+                Collections.singletonList(Intervals.of(
+                    "2022-01-01T00:00:00.000Z/2022-01-02T00:00:00.000Z"))
+            )
+        ));
+    Expression expectedExpressionOrOr = Expressions.or(
+        Expressions.or(equalExpression1, equalExpression2),
+        intervalExpression
+    );
+
+    IcebergOrFilter filterOrAnd = new IcebergOrFilter(
         Arrays.asList(
             new IcebergAndFilter(
                 Arrays.asList(
                     new IcebergEqualsFilter(COLUMN1, "value1"),
                     new IcebergEqualsFilter(COLUMN2, "value2")
                 )),
-            new IcebergIntervalFilter(INTERVAL_COLUMN,
-                                      Collections.singletonList(Intervals.of(
-                                          "2022-01-01T00:00:00.000Z/2022-01-02T00:00:00.000Z")))
+            new IcebergIntervalFilter(
+                INTERVAL_COLUMN,
+                Collections.singletonList(Intervals.of(
+                    "2022-01-01T00:00:00.000Z/2022-01-02T00:00:00.000Z"))
+            )
         ));
-    Expression expectedExpression = Expressions.and(
+    Expression expectedExpressionOrAnd = Expressions.or(
         Expressions.and(equalExpression1, equalExpression2),
         intervalExpression
     );
-    Assert.assertEquals(expectedExpression.toString(), andFilter.getFilterExpression().toString());
+
+    Assert.assertEquals(expectedExpressionOrOr.toString(), filterOrOr.getFilterExpression().toString());
+    Assert.assertEquals(expectedExpressionOrAnd.toString(), filterOrAnd.getFilterExpression().toString());
   }
 }

@@ -31,7 +31,6 @@ import org.apache.druid.initialization.DruidModule;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -43,9 +42,9 @@ public class IcebergDruidModule implements DruidModule
     return Collections.singletonList(
         new SimpleModule("IcebergDruidModule")
             .registerSubtypes(
-                new NamedType(HiveIcebergCatalog.class, "hive"),
-                new NamedType(LocalCatalog.class, "local"),
-                new NamedType(IcebergInputSource.class, "iceberg")
+                new NamedType(HiveIcebergCatalog.class, HiveIcebergCatalog.TYPE_KEY),
+                new NamedType(LocalCatalog.class, LocalCatalog.TYPE_KEY),
+                new NamedType(IcebergInputSource.class, IcebergInputSource.TYPE_KEY)
 
             )
     );
@@ -54,11 +53,9 @@ public class IcebergDruidModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    //JsonConfigProvider.bind(binder, "druid.iceberg.catalog", CatalogConfig.class);
     final Configuration conf = new Configuration();
     conf.setClassLoader(getClass().getClassLoader());
 
-    // Ensure that FileSystem class level initialization happens with correct CL
     ClassLoader currCtxCl = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
@@ -70,7 +67,6 @@ public class IcebergDruidModule implements DruidModule
     finally {
       Thread.currentThread().setContextClassLoader(currCtxCl);
     }
-
     binder.bind(Configuration.class).annotatedWith(HiveConf.class).toInstance(conf);
 
   }

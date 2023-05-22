@@ -445,8 +445,7 @@ public class SinglePhaseSubTask extends AbstractBatchSubtask implements ChatHand
               return true;
             },
             rowIngestionMeters,
-            parseExceptionHandler,
-            null
+            parseExceptionHandler
         )
     ) {
       driver.startJob();

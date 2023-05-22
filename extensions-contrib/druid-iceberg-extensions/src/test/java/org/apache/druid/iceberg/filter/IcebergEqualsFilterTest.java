@@ -19,25 +19,18 @@
 
 package org.apache.druid.iceberg.filter;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import org.apache.iceberg.TableScan;
 import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.expressions.Expressions;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * Interface to manage iceberg expressions which can be used to perform filtering on the iceberg table
- */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "interval", value = IcebergIntervalFilter.class),
-    @JsonSubTypes.Type(name = "equals", value = IcebergEqualsFilter.class),
-    @JsonSubTypes.Type(name = "and", value = IcebergAndFilter.class),
-    @JsonSubTypes.Type(name = "not", value = IcebergNotFilter.class),
-    @JsonSubTypes.Type(name = "or", value = IcebergOrFilter.class)
-})
-public interface IcebergFilter
+public class IcebergEqualsFilterTest
 {
-  TableScan filter(TableScan tableScan);
-
-  Expression getFilterExpression();
+  @Test
+  public void testFilter()
+  {
+    IcebergEqualsFilter testFilter = new IcebergEqualsFilter("column1", "value1");
+    Expression expectedExpression = Expressions.equal("column1", "value1");
+    Assert.assertEquals(expectedExpression.toString(), testFilter.getFilterExpression().toString());
+  }
 }

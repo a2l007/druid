@@ -27,9 +27,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Each extension module needs to properly bind whatever it will use, but sometimes different modules need to bind the
- * same class which will lead to the duplicate injection error. To avoid this problem, each module is supposed to bind
- * different instances.
+ * Binding annotation for implementations specific to the iceberg extension module.
+ * This is required as there can be overlap of classes bound by this extension and the hdfs-storage extension.
  */
 @Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

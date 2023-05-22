@@ -25,7 +25,6 @@ import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.InputSourceReader;
-import org.apache.druid.data.input.impl.InputChooser;
 import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
 import org.apache.druid.indexer.partitions.PartitionsSpec;
 import org.apache.druid.indexing.common.task.batch.parallel.iterator.IndexTaskInputRowIteratorBuilder;
@@ -65,7 +64,6 @@ public class InputSourceProcessor
       PartitionsSpec partitionsSpec,
       InputSource inputSource,
       @Nullable InputFormat inputFormat,
-      InputChooser inputChooser,
       File tmpDir,
       SequenceNameFunction sequenceNameFunction,
       IndexTaskInputRowIteratorBuilder inputRowIteratorBuilder,
@@ -88,9 +86,7 @@ public class InputSourceProcessor
             inputFormat,
             AbstractBatchIndexTask.defaultRowFilter(granularitySpec),
             buildSegmentsMeters,
-            parseExceptionHandler,
-            inputChooser
-
+            parseExceptionHandler
         );
         final HandlingInputRowIterator iterator = inputRowIteratorBuilder
             .delegate(inputRowIterator)

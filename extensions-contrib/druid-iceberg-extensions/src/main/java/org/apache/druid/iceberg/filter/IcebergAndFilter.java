@@ -21,6 +21,7 @@ package org.apache.druid.iceberg.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.expressions.Expression;
@@ -43,6 +44,7 @@ public class IcebergAndFilter implements IcebergFilter
       @JsonProperty("filters") List<IcebergFilter> filters
   )
   {
+    Preconditions.checkArgument(filters != null && filters.size() > 0, "filter requires atleast one field");
     this.filters = filters;
   }
 
@@ -55,8 +57,7 @@ public class IcebergAndFilter implements IcebergFilter
   @Override
   public TableScan filter(TableScan tableScan)
   {
-    tableScan = tableScan.filter(getFilterExpression());
-    return tableScan;
+    return tableScan.filter(getFilterExpression());
   }
 
   @Override
@@ -85,12 +86,10 @@ public class IcebergAndFilter implements IcebergFilter
     for (IcebergFilter child : filters) {
       if (child instanceof IcebergAndFilter) {
         retVal.addAll(flattenAndChildren(((IcebergAndFilter) child).getFilters()));
-      //} else if (!(child instanceof TrueFilter)) {
       } else {
         retVal.add(child);
       }
     }
-
     return retVal;
   }
 }

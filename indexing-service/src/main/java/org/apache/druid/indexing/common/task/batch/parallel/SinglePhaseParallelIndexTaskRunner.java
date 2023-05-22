@@ -182,7 +182,6 @@ public class SinglePhaseParallelIndexTaskRunner extends ParallelIndexPhaseRunner
                 firehoseFactory,
                 inputSource,
                 ingestionSchema.getIOConfig().getInputFormat(),
-                ingestionSchema.getIOConfig().getInputChooser(),
                 ingestionSchema.getIOConfig().isAppendToExisting(),
                 ingestionSchema.getIOConfig().isDropExisting()
             ),

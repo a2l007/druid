@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.apache.druid.iceberg.input;
 
 import com.google.common.collect.ImmutableList;
@@ -6,6 +25,7 @@ import org.apache.druid.data.input.InputSplit;
 import org.apache.druid.data.input.MaxSizeSplitHintSpec;
 import org.apache.druid.data.input.impl.LocalInputSource;
 import org.apache.druid.data.input.impl.LocalInputSourceAdapter;
+import org.apache.druid.iceberg.filter.IcebergEqualsFilter;
 import org.apache.druid.java.util.common.FileUtils;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.Files;
@@ -45,32 +65,72 @@ public class IcebergInputSourceTest
   );
   Map<String, Object> tableData = ImmutableMap.of("id", "123988", "name", "Foo");
 
+  private static final String NAMESPACE = "default";
+  private static final String TABLENAME = "foosTable";
+
   @Test
   public void testInputSource() throws IOException
   {
     final File warehouseDir = FileUtils.createTempDir();
     testCatalog = new LocalCatalog(warehouseDir.getPath(), new HashMap<>());
-    String namespace = "default";
-    String tableName = "foosTable";
-    TableIdentifier tableIdentifier = TableIdentifier.of(Namespace.of(namespace), tableName);
+    TableIdentifier tableIdentifier = TableIdentifier.of(Namespace.of(NAMESPACE), TABLENAME);
 
     createAndLoadTable(tableIdentifier);
 
-    IcebergInputSource inputSource = new IcebergInputSource(tableName, namespace, null, testCatalog, new LocalInputSourceAdapter());
+    IcebergInputSource inputSource = new IcebergInputSource(
+        TABLENAME,
+        NAMESPACE,
+        null,
+        testCatalog,
+        new LocalInputSourceAdapter()
+    );
     Stream<InputSplit<List<String>>> splits = inputSource.createSplits(null, new MaxSizeSplitHintSpec(null, null));
-    List<File> localInputSourceList = splits.map(inputSource::withSplit).map(inpSource -> (LocalInputSource)inpSource).map(LocalInputSource::getFiles).flatMap(List::stream).collect(Collectors.toList());
+    List<File> localInputSourceList = splits.map(inputSource::withSplit)
+                                            .map(inpSource -> (LocalInputSource) inpSource)
+                                            .map(LocalInputSource::getFiles)
+                                            .flatMap(List::stream)
+                                            .collect(Collectors.toList());
 
     Assert.assertEquals(1, localInputSourceList.size());
-    CloseableIterable<Record> datafileReader = Parquet.read(Files.localInput(localInputSourceList.get(0))).project(tableSchema).createReaderFunc(fileSchema -> GenericParquetReaders.buildReader(tableSchema, fileSchema)).build();
+    CloseableIterable<Record> datafileReader = Parquet.read(Files.localInput(localInputSourceList.get(0)))
+                                                      .project(tableSchema)
+                                                      .createReaderFunc(fileSchema -> GenericParquetReaders.buildReader(
+                                                          tableSchema,
+                                                          fileSchema
+                                                      ))
+                                                      .build();
 
-    //List<List<String>> lsit = splits.stream().map(InputSplit::get).collect(Collectors.toList());
-    //InputFile inputFile = icebergTable.io().newInputFile(lsit.get(0).get(0));
-   // System.out.println(lsit.get(0).get(0));
-    //CloseableIterable<Record> readerz = Parquet.read(Files.localInput(new File(lsit.get(0).get(0)))).createReaderFunc(fileSchema -> GenericParquetReaders.buildReader(schema, fileSchema)).build();
     for (Record record : datafileReader) {
       Assert.assertEquals(tableData.get("id"), record.get(0));
       Assert.assertEquals(tableData.get("name"), record.get(1));
     }
+    dropTableFromCatalog(tableIdentifier);
+  }
+
+  @Test
+  public void testInputSourceWithFilter() throws IOException
+  {
+    final File warehouseDir = FileUtils.createTempDir();
+    testCatalog = new LocalCatalog(warehouseDir.getPath(), new HashMap<>());
+    TableIdentifier tableIdentifier = TableIdentifier.of(Namespace.of(NAMESPACE), TABLENAME);
+
+    createAndLoadTable(tableIdentifier);
+
+    IcebergInputSource inputSource = new IcebergInputSource(
+        TABLENAME,
+        NAMESPACE,
+        new IcebergEqualsFilter("id", "0000"),
+        testCatalog,
+        new LocalInputSourceAdapter()
+    );
+    Stream<InputSplit<List<String>>> splits = inputSource.createSplits(null, new MaxSizeSplitHintSpec(null, null));
+    List<File> localInputSourceList = splits.map(inputSource::withSplit)
+                                            .map(inpSource -> (LocalInputSource) inpSource)
+                                            .map(LocalInputSource::getFiles)
+                                            .flatMap(List::stream)
+                                            .collect(Collectors.toList());
+
+    Assert.assertEquals(0, localInputSourceList.size());
     dropTableFromCatalog(tableIdentifier);
   }
 
@@ -107,13 +167,9 @@ public class IcebergInputSourceTest
     //Add the data file to the iceberg table
     icebergTableFromSchema.newAppend().appendFile(dataFile).commit();
 
-//    CloseableIterable<Record> result = IcebergGenerics.read(icebergTableFromSchema).build();
-//    for (Record r : result) {
-//      System.out.println(r);
-//    }
   }
-  
-  private void dropTableFromCatalog (TableIdentifier tableIdentifier)
+
+  private void dropTableFromCatalog(TableIdentifier tableIdentifier)
   {
     testCatalog.retrieveCatalog().dropTable(tableIdentifier);
   }
