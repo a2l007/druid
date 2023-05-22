@@ -38,7 +38,7 @@ public class ForkingTaskRunnerConfig
 
   @JsonProperty
   @NotNull
-  private String javaCommand = "java";
+  private String javaCommand = "/Library/Java/JavaVirtualMachines/applejdk-11.jdk/Contents/Home/bin/java";
 
   /**
    * This is intended for setting -X parameters on the underlying java.  It is used by first splitting on whitespace,
