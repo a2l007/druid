@@ -505,6 +505,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
                                                         .isEmpty();
 
       final InputSource inputSource = ingestionSchema.getIOConfig().getInputSource();
+
       final File tmpDir = toolbox.getIndexingTmpDir();
 
       ingestionState = IngestionState.DETERMINE_PARTITIONS;
@@ -787,7 +788,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         rowFilter,
         determinePartitionsMeters,
         determinePartitionsParseExceptionHandler
-        )) {
+    )) {
       while (inputRowIterator.hasNext()) {
         final InputRow inputRow = inputRowIterator.next();
 

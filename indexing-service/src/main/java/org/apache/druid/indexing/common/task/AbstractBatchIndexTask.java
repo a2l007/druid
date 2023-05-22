@@ -206,10 +206,6 @@ public abstract class AbstractBatchIndexTask extends AbstractTask
       ParseExceptionHandler parseExceptionHandler
   ) throws IOException
   {
-    // Read files from the chooser and append it to the existing inputsource
-    //List<String> chosenFiles = inputChooser.chooseFiles();
-    //inputSource.appendChosenPaths(chosenFiles);
-
     final InputSourceReader inputSourceReader = dataSchema.getTransformSpec().decorate(
         inputSource.reader(
             InputRowSchemas.fromDataSchema(dataSchema),

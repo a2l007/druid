@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 
 import javax.annotation.Nullable;
 import java.io.File;
-import java.util.List;
 
 /**
  * Abstract class for {@link InputSource}. This class provides a default implementation of {@link #reader} with

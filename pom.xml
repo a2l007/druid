@@ -1192,7 +1192,6 @@
           <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
-            <!--<version>3.3.1</version>-->
             <version>${hadoop.compile.version}</version>
             <scope>provided</scope>
           </dependency>
@@ -1200,20 +1199,17 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-hdfs-client</artifactId>
             <version>${hadoop.compile.version}</version>
-            <!--<version>3.3.1</version>-->
             <scope>provided</scope>
           </dependency>
           <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-yarn-common</artifactId>
             <version>${hadoop.compile.version}</version>
-            <!--<version>3.3.1</version>-->
             <scope>provided</scope>
           </dependency>
           <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-mapreduce-client-core</artifactId>
-            <!--<version>3.3.1</version>-->
             <version>${hadoop.compile.version}</version>
             <scope>provided</scope>
             <exclusions>

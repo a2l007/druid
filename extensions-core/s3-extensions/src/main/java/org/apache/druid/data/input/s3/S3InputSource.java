@@ -375,6 +375,7 @@ public class S3InputSource extends CloudObjectInputSource
         getAwsClientConfig()
     );
   }
+
   @Override
   public int hashCode()
   {

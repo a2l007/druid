@@ -19,7 +19,6 @@
 
 package org.apache.druid.k8s.overlord;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -73,21 +72,21 @@ public class KubernetesTaskRunnerConfig
   private boolean disableClientProxy;
 
   @JsonProperty
-  @JsonIgnore
-  public Period maxTaskDuration = new Period("PT4H");
+  @NotNull
+  private Period maxTaskDuration = new Period("PT4H");
 
   @JsonProperty
-  @JsonIgnore
+  @NotNull
   // how long to wait for the jobs to be cleaned up.
   private Period taskCleanupDelay = new Period("P2D");
 
   @JsonProperty
-  @JsonIgnore
+  @NotNull
   // interval for k8s job cleanup to run
   private Period taskCleanupInterval = new Period("PT10m");
 
   @JsonProperty
-  @JsonIgnore
+  @NotNull
   // how long to wait for the peon k8s job to launch
   private Period k8sjobLaunchTimeout = new Period("PT1H");
 

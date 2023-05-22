@@ -33,7 +33,6 @@ import org.apache.druid.java.util.common.UOE;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -91,11 +90,6 @@ public interface InputSource
       @Nullable InputFormat inputFormat,
       File temporaryDirectory
   );
-
-  default void appendInputFilePaths(List<String> inputFilePaths)
-  {
-
-  }
 
   /**
    * The types of input sources uses. A set is returned here, as some InputSource implementation allow for

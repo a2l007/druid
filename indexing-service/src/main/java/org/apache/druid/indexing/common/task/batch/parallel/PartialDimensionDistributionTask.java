@@ -232,7 +232,6 @@ public class PartialDimensionDistributionTask extends PerfectRollupWorkerTask
     InputFormat inputFormat = inputSource.needsFormat()
                               ? ParallelIndexSupervisorTask.getInputFormat(ingestionSchema)
                               : null;
-
     final RowIngestionMeters buildSegmentsMeters = toolbox.getRowIngestionMetersFactory().createRowIngestionMeters();
     final ParseExceptionHandler parseExceptionHandler = new ParseExceptionHandler(
         buildSegmentsMeters,
