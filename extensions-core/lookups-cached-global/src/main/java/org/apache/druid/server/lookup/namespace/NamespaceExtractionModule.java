@@ -32,6 +32,7 @@ import org.apache.druid.guice.PolyBind;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.query.lookup.NamespaceLookupExtractorFactory;
 import org.apache.druid.query.lookup.namespace.CacheGenerator;
+import org.apache.druid.query.lookup.namespace.DruidExtractionNamespace;
 import org.apache.druid.query.lookup.namespace.ExtractionNamespace;
 import org.apache.druid.query.lookup.namespace.JdbcExtractionNamespace;
 import org.apache.druid.query.lookup.namespace.StaticMapExtractionNamespace;
@@ -107,6 +108,10 @@ public class NamespaceExtractionModule implements DruidModule
     getNamespaceFactoryMapBinder(binder)
         .addBinding(StaticMapExtractionNamespace.class)
         .to(StaticMapCacheGenerator.class)
+        .in(LazySingleton.class);
+    getNamespaceFactoryMapBinder(binder)
+        .addBinding(DruidExtractionNamespace.class)
+        .to(DruidCacheGenerator.class)
         .in(LazySingleton.class);
   }
 }

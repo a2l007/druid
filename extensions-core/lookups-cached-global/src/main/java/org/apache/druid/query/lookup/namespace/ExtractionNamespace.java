@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "jdbc", value = JdbcExtractionNamespace.class),
     @JsonSubTypes.Type(name = "uri", value = UriExtractionNamespace.class),
+    @JsonSubTypes.Type(name = "druid", value = DruidExtractionNamespace.class),
     @JsonSubTypes.Type(name = StaticMapExtractionNamespace.TYPE_NAME, value = StaticMapExtractionNamespace.class)
 })
 /**
